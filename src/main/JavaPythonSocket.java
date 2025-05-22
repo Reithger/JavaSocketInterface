@@ -29,7 +29,7 @@ import java.io.IOException;
  *
  */
 
-public class AudioReading implements InitiateListening{
+public class JavaPythonSocket implements InitiateListening{
 	
 //---  Constants   ----------------------------------------------------------------------------
 	
@@ -47,7 +47,7 @@ public class AudioReading implements InitiateListening{
 	
 //---  Constructors   -------------------------------------------------------------------------
 	
-	public AudioReading(String pythonFilePath, JavaReceiver reference, String ... inArgs) {
+	public JavaPythonSocket(String pythonFilePath, JavaReceiver reference, String ... inArgs) {
 		pythonPath = pythonFilePath;
 		args = inArgs;
 		passTo = reference;
