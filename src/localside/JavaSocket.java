@@ -1,10 +1,15 @@
-package main;
+package localside;
 
-import java.io.IOException;
+import core.JavaReceiver;
+import localside.listen.InitiateListening;
+import localside.listen.KeepAliveThread;
+import localside.listen.MessageSender;
+import localside.listen.ThreadGenerator;
+import subprogram.SubProgram;
 
 /**
  * 
- * AudioReading class, the primary interface for the JavaPythonSocketTalk library.
+ * JavaSocket class, an instance of a listening station on a particular port.
  * 
  * This class manages the details of running a Java-end socket and calling the Python program (which
  * we assume will take an argument in the first position that is the matching socket number and set
@@ -29,7 +34,7 @@ import java.io.IOException;
  *
  */
 
-public class JavaPythonSocket implements InitiateListening{
+public class JavaSocket implements InitiateListening {
 	
 //---  Constants   ----------------------------------------------------------------------------
 	
@@ -37,24 +42,53 @@ public class JavaPythonSocket implements InitiateListening{
 	
 	private final static int TIMEOUT_PERIOD = 5000;
 	
+	private final static int KEEP_ALIVE_DEFAULT = -1;
+	
 //---  Instance Variables   -------------------------------------------------------------------
 	
 	private JavaReceiver passTo;
+	private SubProgram subProgram;
 	private int currentPort;
+	
+	/** int value used to denote how long to wait for a message from the listened-to port before resetting the connection;
+	 * a value of -1 denotes do not track last message received for timing out*/
+	private int timeout;
+	/** int value used to denote how frequently to send a keepalive message to the connected-to port;
+	 * a value of -1 denotes do not send keep alive messages*/
+	private int keepalive;
+	
 	private volatile ListenerPacket packet;
-	private String pythonPath;
-	private String[] args;
 	
 //---  Constructors   -------------------------------------------------------------------------
 	
-	public JavaPythonSocket(String pythonFilePath, JavaReceiver reference, String ... inArgs) {
-		pythonPath = pythonFilePath;
-		args = inArgs;
-		passTo = reference;
-		currentPort = START_PORT;
-		setUpListening();
+	public JavaSocket() {
+		setPort(START_PORT);
+		setTimeout(TIMEOUT_PERIOD);
+		setKeepAlive(KEEP_ALIVE_DEFAULT);
 	}
 	
+	public JavaSocket(int port, int timeout, int keepalive) {
+		setPort(port);
+		setTimeout(timeout);
+		setKeepAlive(keepalive);
+	}
+	
+	public JavaSocket(JavaReceiver reference) {
+		passTo = reference;
+		setPort(START_PORT);
+		setTimeout(TIMEOUT_PERIOD);
+		setKeepAlive(KEEP_ALIVE_DEFAULT);
+	}
+
+	
+	public JavaSocket(JavaReceiver reference, SubProgram runnable) {
+		passTo = reference;
+		subProgram = runnable;
+		setPort(START_PORT);
+		setTimeout(TIMEOUT_PERIOD);
+		setKeepAlive(KEEP_ALIVE_DEFAULT);
+	}
+
 //---  Operations   ---------------------------------------------------------------------------
 	
 	/**
@@ -72,7 +106,37 @@ public class JavaPythonSocket implements InitiateListening{
 			packet.closeOutSession();
 		}
 		startLocalListener(passTo);
-		callPythonCommunication();
+		if(subProgram != null)
+			subProgram.initiateSubprogram("" + currentPort);
+	}
+	
+	public void sendMessage(String message) {
+		if(packet != null) {
+			packet.sendMessage(message);
+		}
+	}
+	
+	private void startLocalListener(JavaReceiver reference){
+		packet = new ListenerPacket();
+		
+		KeepAliveThread listen = ThreadGenerator.generateListeningThread(packet, reference, currentPort);
+		
+		KeepAliveThread timeOut = timeout == -1 ? null : ThreadGenerator.generateTimeOutThread(packet, this,  1000,  timeout, subProgram == null ? null : subProgram.getContext());
+		
+		KeepAliveThread keepAlive = keepalive == -1 ? null : ThreadGenerator.generateSignOfLifeThread(packet, keepalive);
+		
+		packet.assignThreads(listen, timeOut, keepAlive);
+				
+		
+		listen.start();
+		
+		if(timeOut != null) {
+			timeOut.start();
+		}
+		
+		if(keepAlive != null) {
+			keepAlive.start();
+		}
 	}
 	
 	/**
@@ -93,38 +157,27 @@ public class JavaPythonSocket implements InitiateListening{
 			currentPort = 3500;
 		}
 	}
-	
-	private void startLocalListener(JavaReceiver reference){
-		packet = new ListenerPacket();
-		
-		ListeningThread listen = new ListeningThread(packet, reference, currentPort);
-		
-		TimeOutThread timeOut = new TimeOutThread(packet, this, 1000, TIMEOUT_PERIOD);
-		
-		packet.assignThreads(listen, timeOut);
-		
-		listen.start();
-		timeOut.start();
-	}
-	
-	private void callPythonCommunication() {
-		StringBuilder command = new StringBuilder();
-		command.append("python " + pythonPath + " " + currentPort);
-		for(String s : args) {
-			command.append(" " + s);
-		}
-		try {
-			Runtime.getRuntime().exec(command.toString());
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
 
 //---  Setter Methods   -----------------------------------------------------------------------
 
-	public void setCurrentPortNumber(int in) {
-		currentPort = in;
+	public void setPort(int in) {
+		currentPort = in >= 2000 && in <= 9999 ? in : START_PORT;
+	}
+	
+	public void setTimeout(int in) {
+		timeout = in < 0 ? -1 : in;
+	}
+	
+	public void setKeepAlive(int in) {
+		keepalive = in < 0 ? -1 : in;
+	}
+	
+	public void setReceiver(JavaReceiver in) {
+		passTo = in;
+	}
+	
+	public void setSubprogram(SubProgram in) {
+		subProgram = in;
 	}
 	
 //---  Getter Methods   -----------------------------------------------------------------------
@@ -132,6 +185,9 @@ public class JavaPythonSocket implements InitiateListening{
 	public int getCurrentPortNumber() {
 		return currentPort;
 	}
-
+	
+	public MessageSender getMessageSender() {
+		return packet;
+	}
 
 }

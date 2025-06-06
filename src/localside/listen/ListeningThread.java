@@ -1,8 +1,11 @@
-package main;
+package localside.listen;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.Socket;
+
+import core.JavaReceiver;
+import localside.ListenerPacket;
 
 public class ListeningThread extends KeepAliveThread{
 
@@ -28,7 +31,7 @@ public class ListeningThread extends KeepAliveThread{
 			String received = receiver.readLine();
 			while(received != null && !received.equals("exit") && getKeepAliveStatus()) {
 				if(!received.equals(""))
-					reference.receivePythonData(received);
+					reference.receiveSocketData(received);
 				received = receiver.readLine();
 				packet.updateLastReceived();
 			}

@@ -1,4 +1,6 @@
-package main;
+package localside.listen;
+
+import localside.ListenerPacket;
 
 public class TimeOutThread extends KeepAliveThread{
 
@@ -7,8 +9,11 @@ public class TimeOutThread extends KeepAliveThread{
 	private int checkRate;
 	private int timeoutPeriod;
 	
-	public TimeOutThread(ListenerPacket context, InitiateListening refIn, int checkTimer, int timeout) {
+	private String subProgramID;
+	
+	public TimeOutThread(ListenerPacket context, InitiateListening refIn, int checkTimer, int timeout, String programContext) {
 		super();
+		subProgramID = programContext == null ? "Subprogram" : programContext; 
 		packet = context;
 		reference = refIn;
 		checkRate = checkTimer;
@@ -21,12 +26,12 @@ public class TimeOutThread extends KeepAliveThread{
 			try {
 				Thread.sleep(checkRate);
 				if(System.currentTimeMillis() - packet.getLastReceived() > timeoutPeriod && !packet.getLastReceived().equals(0L)) {
-					System.out.println("Listener Thread timed out on communication with Python process, restarting");
+					System.out.println("Listener Thread timed out on communication with " + subProgramID + " process, restarting");
 					reference.setUpListening();
 					break;
 				}
 				else {
-					System.out.println("Listener Thread still in communication with Python process, last check in: " + packet.getLastReceived());
+					System.out.println("Listener Thread still in communication with " + subProgramID + " process, last check in: " + packet.getLastReceived());
 				}
 			} catch (Exception e) {
 				e.printStackTrace();

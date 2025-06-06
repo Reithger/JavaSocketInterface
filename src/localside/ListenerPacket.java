@@ -1,9 +1,16 @@
-package main;
+package localside;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-public class ListenerPacket {
+import localside.listen.KeepAliveThread;
+import localside.listen.MessageSender;
+
+public class ListenerPacket implements MessageSender{
 	
 //---  Instance Variables   -------------------------------------------------------------------
 
@@ -12,6 +19,9 @@ public class ListenerPacket {
 	private Long lastReceived;
 	private KeepAliveThread listener;
 	private KeepAliveThread timeOut;
+	private KeepAliveThread keepAlive;
+	
+	private Writer writer;
 	
 //---  Constructors   -------------------------------------------------------------------------
 	
@@ -35,7 +45,7 @@ public class ListenerPacket {
 	public void updateLastReceived() {
 		lastReceived = System.currentTimeMillis();
 	}
-	
+
 	public void restartServer(int port) {
 		try {
 			if(server != null) {
@@ -75,12 +85,40 @@ public class ListenerPacket {
 			timeOut.end();
 			timeOut.interrupt();
 		}
+		if(keepAlive != null) {
+			keepAlive.end();
+			keepAlive.interrupt();
+		}
+		if(writer != null) {
+			try {
+				writer.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 		
 	}
-
-	public void assignThreads(KeepAliveThread listen, KeepAliveThread time) {
+	
+	@Override
+	public void sendMessage(String message) {
+		if(writer == null) {
+			try {
+				writer = new BufferedWriter(new OutputStreamWriter(client.getOutputStream(), "UTF-8"));
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		try {
+			writer.write(message, 0, message.length());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void assignThreads(KeepAliveThread listen, KeepAliveThread time, KeepAliveThread signOfLife) {
 		listener = listen;
 		timeOut = time;
+		keepAlive = signOfLife;
 	}
 
 //---  Getter Methods   -----------------------------------------------------------------------0
@@ -95,6 +133,10 @@ public class ListenerPacket {
 	
 	public Long getLastReceived() {
 		return lastReceived;
+	}
+	
+	public MessageSender getMessageSender() {
+		return this;
 	}
 
 }
