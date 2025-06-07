@@ -26,14 +26,15 @@ public class JavaProgramRun implements SubProgram {
 	}
 	
 	@Override
-	public void initiateSubprogram(String port) {
+	public void initiateSubprogram(String listenPort, String sendPort) {
 		StringBuilder command = new StringBuilder();
-		command.append("java -jar " + runPath + (port == null ? "" : (" " + port)));
+		command.append("java -jar " + runPath + (listenPort == null ? "" : (" " + listenPort + " " + sendPort)));
 		for(String s : arguments) {
 			command.append(" " + s);
 		}
 		try {
 			Runtime.getRuntime().exec(command.toString());
+			System.out.println("Java Subprogram: " + runPath + " has been executed and is unattached");
 		}
 		catch(IOException e) {
 			e.printStackTrace();

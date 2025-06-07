@@ -24,8 +24,21 @@ package subprogram;
  */
 
 public interface SubProgram {
+	
+	/**
+	 * 
+	 * For any sub-program, we can define two ports of relevance: the listening port that this program
+	 * will listen to for receiving messages, and the sending port that this program will use to send a
+	 * message to the subprogram.
+	 * 
+	 * It sounds a little bit backwards but basically, the first port is how the subprogram talks to the
+	 * Java host, the second port is how the Java host talks to the subprogram.
+	 * 
+	 * @param listenPort
+	 * @param sendPort
+	 */
 
-	public abstract void initiateSubprogram(String port);
+	public abstract void initiateSubprogram(String listenPort, String sendPort);
 	
 	public abstract String getContext();
 	

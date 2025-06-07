@@ -17,9 +17,9 @@ public class PythonProgramRun implements SubProgram{
 		return programRunPath;
 	}
 	
-	public void initiateSubprogram(String port) {
+	public void initiateSubprogram(String listenPort, String sendPort) {
 		StringBuilder command = new StringBuilder();
-		command.append("python " + programRunPath + (port == null ? "" : (" " + port)));
+		command.append("python " + programRunPath + (listenPort == null ? "" : (" " + listenPort + " " + sendPort)));
 		for(String s : arguments) {
 			command.append(" " + s);
 		}

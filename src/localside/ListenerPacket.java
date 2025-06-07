@@ -8,36 +8,30 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 import localside.listen.KeepAliveThread;
-import localside.listen.MessageSender;
+import localside.listen.SenderThread;
 
-public class ListenerPacket implements MessageSender{
+public class ListenerPacket {
 	
 //---  Instance Variables   -------------------------------------------------------------------
 
-	private ServerSocket server;
-	private Socket client;
+	private volatile ServerSocket server;
+	private volatile Socket client;
+	
 	private Long lastReceived;
 	private KeepAliveThread listener;
 	private KeepAliveThread timeOut;
 	private KeepAliveThread keepAlive;
+	private SenderThread messageSender;
 	
-	private Writer writer;
+	private int listenPort;
+	private int sendPort;
 	
 //---  Constructors   -------------------------------------------------------------------------
 	
-	public ListenerPacket() {
-		lastReceived = 0L;
-	}
-	
-	public ListenerPacket(int port) {
-		try {
-			server = new ServerSocket(port);
-			client = server.accept();
-			lastReceived = System.currentTimeMillis();
-		}
-		catch(Exception e) {
-			e.printStackTrace();
-		}
+	public ListenerPacket(int inListen, int inSend) {
+		lastReceived = new Long(0);
+		listenPort = inListen;
+		sendPort = inSend;
 	}
 	
 //---  Operations   ---------------------------------------------------------------------------
@@ -46,14 +40,15 @@ public class ListenerPacket implements MessageSender{
 		lastReceived = System.currentTimeMillis();
 	}
 
-	public void restartServer(int port) {
+	public void restartServer() {
 		try {
 			if(server != null) {
 				server.close();
 				client.close();
 			}
-			server = new ServerSocket(port);
+			server = new ServerSocket(listenPort);
 			client = server.accept();
+			System.out.println("Client connection established with: " + client);
 		}
 		catch(Exception e) {
 			e.printStackTrace();
@@ -61,6 +56,23 @@ public class ListenerPacket implements MessageSender{
 	}
 	
 	public void closeOutSession() {
+		if(listener != null) {
+			listener.end();
+			listener.interrupt();
+		}
+		if(timeOut != null) {
+			timeOut.end();
+			timeOut.interrupt();
+		}
+		if(keepAlive != null) {
+			keepAlive.end();
+			keepAlive.interrupt();
+		}
+		if(messageSender != null) {
+			messageSender.end();
+			messageSender.interrupt();
+		}
+		
 		try {
 			if(server != null && !server.isClosed()) {
 				server.close();
@@ -77,42 +89,14 @@ public class ListenerPacket implements MessageSender{
 		catch(Exception e) {
 			e.printStackTrace();
 		}
-		if(listener != null) {
-			listener.end();
-			listener.interrupt();
-		}
-		if(timeOut != null) {
-			timeOut.end();
-			timeOut.interrupt();
-		}
-		if(keepAlive != null) {
-			keepAlive.end();
-			keepAlive.interrupt();
-		}
-		if(writer != null) {
-			try {
-				writer.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		
 	}
 	
-	@Override
 	public void sendMessage(String message) {
-		if(writer == null) {
-			try {
-				writer = new BufferedWriter(new OutputStreamWriter(client.getOutputStream(), "UTF-8"));
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+		if(messageSender == null) {
+			messageSender = new SenderThread(sendPort);
+			messageSender.start();
 		}
-		try {
-			writer.write(message, 0, message.length());
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		messageSender.queueMessage(message);
 	}
 	
 	public void assignThreads(KeepAliveThread listen, KeepAliveThread time, KeepAliveThread signOfLife) {
@@ -135,8 +119,4 @@ public class ListenerPacket implements MessageSender{
 		return lastReceived;
 	}
 	
-	public MessageSender getMessageSender() {
-		return this;
-	}
-
 }

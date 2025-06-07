@@ -16,9 +16,13 @@ public class SignOfLifeThread extends KeepAliveThread {
 		while(getKeepAliveStatus()) {
 			try {
 				Thread.sleep(messageSendTimer);
-				messageSender.sendMessage("Keepalive message");
+				if(messageSender != null)
+					messageSender.sendMessage("Keepalive message");
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			catch (Exception e) {
 				e.printStackTrace();
 			}
 		}

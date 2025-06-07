@@ -10,14 +10,14 @@ public class SubProgramGenerator {
 		return new JavaProgramRun(path, arguments);
 	}
 	
-	public static void runPythonSubProgram(String path, String port, String ... arguments) {
+	public static void runPythonSubProgram(String path, String listenPort, String sendPort, String ... arguments) {
 		PythonProgramRun run = new PythonProgramRun(path, arguments);
-		run.initiateSubprogram(port);
+		run.initiateSubprogram(listenPort, sendPort);
 	}
 
-	public static void runJavaSubProgram(String path, String port, String ... arguments) {
+	public static void runJavaSubProgram(String path, String listenPort, String sendPort, String ... arguments) {
 		JavaProgramRun run = new JavaProgramRun(path, arguments);
-		run.initiateSubprogram(port);
+		run.initiateSubprogram(listenPort, sendPort);
 	}
 	
 }

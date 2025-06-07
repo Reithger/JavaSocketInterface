@@ -37,12 +37,13 @@ public class SocketControl {
 	
 //---  Instance Variables   -------------------------------------------------------------------
 	
-	private HashMap<String, JavaSocket> socketInstances;
+	private static HashMap<String, JavaSocket> socketInstances;
 	
 //---  Constructors   -------------------------------------------------------------------------
 	
 	public SocketControl() {
-		socketInstances = new HashMap<String, JavaSocket>();
+		if(socketInstances == null)
+			socketInstances = new HashMap<String, JavaSocket>();
 	}
 	
 //---  Operations   ---------------------------------------------------------------------------
@@ -73,15 +74,40 @@ public class SocketControl {
 	}
 	
 	public void attachJavaSender(String label, JavaSender reference) {
-		reference.receiveMessageSender(socketInstances.get(label).getMessageSender());
+		reference.receiveMessageSender(socketInstances.get(label));
 	}
 	
-	public void runPythonSubProgramUnattached(String programPath, String port, String ... arguments) {
-		SubProgramGenerator.runPythonSubProgram(programPath, port, arguments);
+	/**
+	 * 
+	 * Attaches an object that implements the JavaTeardown interface.
+	 * 
+	 * If such an object is assigned to a socket instance, then upon the
+	 * loss of connection to the other end of the socket (when it would reset
+	 * its listening context), it instead calls on teardownProgram in the
+	 * provided object to either reset or terminate the program attached
+	 * to the JavaTeardown object.
+	 * 
+	 * This is so that, if you do a costly construction on startup in a subprogram,
+	 * you can properly terminate the old instance and not leave it hanging around.
+	 * 
+	 * As the setupListening process does a command line level call to start a new
+	 * instance of a program, you will likely want to use this to ensure your subprogram
+	 * is fully terminated and closes.
+	 * 
+	 * @param label
+	 * @param reference
+	 */
+	
+	public void attachJavaTeardown(String label, JavaTeardown reference) {
+		socketInstances.get(label).assignTearDown(reference);
 	}
 	
-	public void runJavaSubProgramUnattached(String programPath, String port, String ... arguments) {
-		SubProgramGenerator.runJavaSubProgram(programPath, port, arguments);
+	public void runPythonSubProgramUnattached(String programPath, String listenPort, String sendPort, String ... arguments) {
+		SubProgramGenerator.runPythonSubProgram(programPath, listenPort, sendPort, arguments);
+	}
+	
+	public void runJavaSubProgramUnattached(String programPath, String listenPort, String sendPort, String ... arguments) {
+		SubProgramGenerator.runJavaSubProgram(programPath, listenPort, sendPort, arguments);
 	}
 	
 	public boolean verifySubprogramReady(String localFileContext, String fileName, String localReferencePath, String localJarPath) {
@@ -90,8 +116,12 @@ public class SocketControl {
 	
 //---  Setter Methods   -----------------------------------------------------------------------
 	
-	public void setInstancePort(String label, int port) {
-		socketInstances.get(label).setPort(port);
+	public void setInstanceListenPort(String label, int port) {
+		socketInstances.get(label).setListenPort(port);
+	}
+	
+	public void setInstanceSendPort(String label, int port) {
+		socketInstances.get(label).setSendPort(port);
 	}
 	
 	public void setInstanceTimeout(String label, int timeout) {
@@ -100,6 +130,10 @@ public class SocketControl {
 	
 	public void setInstanceKeepAlive(String label, int keepalive) {
 		socketInstances.get(label).setKeepAlive(keepalive);
+	}
+	
+	public void setInstanceTimingDelay(String label, int timingDelay) {
+		socketInstances.get(label).setTimingDelay(timingDelay);
 	}
 	
 	public void setInstanceSubprogramJava(String label, String programPath, String ... arguments) {

@@ -8,16 +8,21 @@ public class TimeOutThread extends KeepAliveThread{
 	private InitiateListening reference;
 	private int checkRate;
 	private int timeoutPeriod;
+	private int delay;
+	
+	private long timeInitiated;
 	
 	private String subProgramID;
 	
-	public TimeOutThread(ListenerPacket context, InitiateListening refIn, int checkTimer, int timeout, String programContext) {
+	public TimeOutThread(ListenerPacket context, InitiateListening refIn, int checkTimer, int timeout, int startTimingDelay, String programContext) {
 		super();
 		subProgramID = programContext == null ? "Subprogram" : programContext; 
 		packet = context;
 		reference = refIn;
 		checkRate = checkTimer;
 		timeoutPeriod = timeout;
+		delay = startTimingDelay;
+		timeInitiated = System.currentTimeMillis();
 	}
 	
 	@Override
@@ -25,18 +30,35 @@ public class TimeOutThread extends KeepAliveThread{
 		while(getKeepAliveStatus()) {
 			try {
 				Thread.sleep(checkRate);
-				if(System.currentTimeMillis() - packet.getLastReceived() > timeoutPeriod && !packet.getLastReceived().equals(0L)) {
+				if(System.currentTimeMillis() - packet.getLastReceived() > timeoutPeriod && !packet.getLastReceived().equals(new Long(0))) {
 					System.out.println("Listener Thread timed out on communication with " + subProgramID + " process, restarting");
 					reference.setUpListening();
 					break;
 				}
 				else {
-					System.out.println("Listener Thread still in communication with " + subProgramID + " process, last check in: " + packet.getLastReceived());
+					if(packet.getLastReceived().equals(new Long(0))) {
+						System.out.println("Listener Thread has not received initial communication with " + subProgramID + " process yet");
+					}
+					else {
+						System.out.println("Listener Thread still in communication with " + subProgramID + " process, last check in: " + packet.getLastReceived() + " (" + lastCheckIn() + ") milliseconds");
+					}
+					if(myAge() > delay && packet.getLastReceived().equals(new Long(0))) {
+						System.out.println("No Message Received in " + delay + " MilliSeconds, Beginning Timeout Counter with Phantom Message Timestamp");
+						packet.updateLastReceived();
+					}
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		}
+	}
+	
+	private long lastCheckIn() {
+		return System.currentTimeMillis() - packet.getLastReceived();
+	}
+	
+	private long myAge() {
+		return System.currentTimeMillis() - timeInitiated;
 	}
 	
 	@Override

@@ -1,6 +1,7 @@
 package localside;
 
 import core.JavaReceiver;
+import core.JavaTeardown;
 import localside.listen.InitiateListening;
 import localside.listen.KeepAliveThread;
 import localside.listen.MessageSender;
@@ -34,7 +35,7 @@ import subprogram.SubProgram;
  *
  */
 
-public class JavaSocket implements InitiateListening {
+public class JavaSocket implements InitiateListening, MessageSender {
 	
 //---  Constants   ----------------------------------------------------------------------------
 	
@@ -44,11 +45,15 @@ public class JavaSocket implements InitiateListening {
 	
 	private final static int KEEP_ALIVE_DEFAULT = -1;
 	
+	private final static int TIMING_DELAY = 5000;
+	
 //---  Instance Variables   -------------------------------------------------------------------
 	
 	private JavaReceiver passTo;
 	private SubProgram subProgram;
-	private int currentPort;
+	private int currentListenPort;
+	private int currentSendPort;
+	private int timingDelay;
 	
 	/** int value used to denote how long to wait for a message from the listened-to port before resetting the connection;
 	 * a value of -1 denotes do not track last message received for timing out*/
@@ -59,33 +64,42 @@ public class JavaSocket implements InitiateListening {
 	
 	private volatile ListenerPacket packet;
 	
+	private JavaTeardown terminate;
+	
 //---  Constructors   -------------------------------------------------------------------------
 	
 	public JavaSocket() {
-		setPort(START_PORT);
+		setListenPort(START_PORT);
+		setSendPort(START_PORT + 5);
 		setTimeout(TIMEOUT_PERIOD);
+		setTimingDelay(TIMING_DELAY);
 		setKeepAlive(KEEP_ALIVE_DEFAULT);
 	}
 	
-	public JavaSocket(int port, int timeout, int keepalive) {
-		setPort(port);
+	public JavaSocket(int listenPort, int sendPort, int timeout, int keepalive, int timingDelay) {
+		setListenPort(listenPort);
+		setSendPort(sendPort);
 		setTimeout(timeout);
 		setKeepAlive(keepalive);
+		setTimingDelay(timingDelay);
 	}
 	
 	public JavaSocket(JavaReceiver reference) {
 		passTo = reference;
-		setPort(START_PORT);
+		setListenPort(START_PORT);
+		setSendPort(START_PORT + 5);
 		setTimeout(TIMEOUT_PERIOD);
+		setTimingDelay(TIMING_DELAY);
 		setKeepAlive(KEEP_ALIVE_DEFAULT);
 	}
-
 	
 	public JavaSocket(JavaReceiver reference, SubProgram runnable) {
 		passTo = reference;
 		subProgram = runnable;
-		setPort(START_PORT);
+		setListenPort(START_PORT);
+		setSendPort(START_PORT + 5);
 		setTimeout(TIMEOUT_PERIOD);
+		setTimingDelay(TIMING_DELAY);
 		setKeepAlive(KEEP_ALIVE_DEFAULT);
 	}
 
@@ -101,29 +115,38 @@ public class JavaSocket implements InitiateListening {
 	 */
 	
 	public void setUpListening() {
-		iteratePortNumber();
 		if(packet != null) {
 			packet.closeOutSession();
+			if(terminate != null) {
+				terminate.teardownProgram();
+				return;
+			}
+			iteratePortNumber();
 		}
+		System.out.println("Initiating Listening Process on Listen Port: " + currentListenPort + " and Send Port: " + currentSendPort);
 		startLocalListener(passTo);
 		if(subProgram != null)
-			subProgram.initiateSubprogram("" + currentPort);
+			subProgram.initiateSubprogram("" + currentListenPort, "" + currentSendPort);
 	}
 	
-	public void sendMessage(String message) {
+	@Override
+	public void sendMessage(String message) throws Exception {
 		if(packet != null) {
 			packet.sendMessage(message);
+		}
+		else {
+			throw new Exception("Message Sending Capabilities Not Ready Yet, Please Try Again");
 		}
 	}
 	
 	private void startLocalListener(JavaReceiver reference){
-		packet = new ListenerPacket();
+		packet = new ListenerPacket(currentListenPort, currentSendPort);
 		
-		KeepAliveThread listen = ThreadGenerator.generateListeningThread(packet, reference, currentPort);
+		KeepAliveThread listen = ThreadGenerator.generateListeningThread(packet, reference);
 		
-		KeepAliveThread timeOut = timeout == -1 ? null : ThreadGenerator.generateTimeOutThread(packet, this,  1000,  timeout, subProgram == null ? null : subProgram.getContext());
+		KeepAliveThread timeOut = timeout == -1 ? null : ThreadGenerator.generateTimeOutThread(packet, this,  1000,  timeout, timingDelay, subProgram == null ? null : subProgram.getContext());
 		
-		KeepAliveThread keepAlive = keepalive == -1 ? null : ThreadGenerator.generateSignOfLifeThread(packet, keepalive);
+		KeepAliveThread keepAlive = keepalive == -1 ? null : ThreadGenerator.generateSignOfLifeThread(this, keepalive);
 		
 		packet.assignThreads(listen, timeOut, keepAlive);
 				
@@ -152,16 +175,29 @@ public class JavaSocket implements InitiateListening {
 	}
 
 	private void iteratePortNumber() {
-		currentPort++;
-		if(currentPort > 7500) {
-			currentPort = 3500;
+		currentListenPort++;
+		currentSendPort++;
+		if(currentListenPort > 9999) {
+			currentListenPort = 2000;
+		}
+		if(currentSendPort > 9999) {
+			currentSendPort = 2005;
 		}
 	}
 
+	public void assignTearDown(JavaTeardown tear) {
+		terminate = tear;
+	}
+	
 //---  Setter Methods   -----------------------------------------------------------------------
 
-	public void setPort(int in) {
-		currentPort = in >= 2000 && in <= 9999 ? in : START_PORT;
+	public void setListenPort(int in) {
+		currentListenPort = in >= 2000 && in <= 9999 ? in : START_PORT;
+	}
+	
+	public void setSendPort(int in) {
+		currentSendPort = in >= 2000 && in <= 9999 ? in : START_PORT + 5;
+		
 	}
 	
 	public void setTimeout(int in) {
@@ -170,6 +206,10 @@ public class JavaSocket implements InitiateListening {
 	
 	public void setKeepAlive(int in) {
 		keepalive = in < 0 ? -1 : in;
+	}
+	
+	public void setTimingDelay(int in) {
+		timingDelay = in < 0 ? 0 : in;
 	}
 	
 	public void setReceiver(JavaReceiver in) {
@@ -182,12 +222,12 @@ public class JavaSocket implements InitiateListening {
 	
 //---  Getter Methods   -----------------------------------------------------------------------
 
-	public int getCurrentPortNumber() {
-		return currentPort;
-	}
-	
-	public MessageSender getMessageSender() {
-		return packet;
+	public int getCurrentListenPortNumber() {
+		return currentListenPort;
 	}
 
+	public int getCurrentSendPortNumber() {
+		return currentSendPort;
+	}
+	
 }
