@@ -1,5 +1,6 @@
 package localside.listen;
 
+import localside.InitiateListening;
 import localside.ListenerPacket;
 
 public class TimeOutThread extends KeepAliveThread{
@@ -31,19 +32,19 @@ public class TimeOutThread extends KeepAliveThread{
 			try {
 				Thread.sleep(checkRate);
 				if(System.currentTimeMillis() - packet.getLastReceived() > timeoutPeriod && !packet.getLastReceived().equals(new Long(0))) {
-					System.out.println("Listener Thread timed out on communication with " + subProgramID + " process, restarting");
+					print("Listener Thread timed out on communication with " + subProgramID + " process, restarting");
 					reference.setUpListening();
 					break;
 				}
 				else {
 					if(packet.getLastReceived().equals(new Long(0))) {
-						System.out.println("Listener Thread has not received initial communication with " + subProgramID + " process yet");
+						print("Listener Thread has not received initial communication with " + subProgramID + " process yet");
 					}
 					else {
-						System.out.println("Listener Thread still in communication with " + subProgramID + " process, last check in: " + packet.getLastReceived() + " (" + lastCheckIn() + ") milliseconds");
+						print("Listener Thread still in communication with " + subProgramID + " process, last check in: " + packet.getLastReceived() + " (" + lastCheckIn() + ") milliseconds");
 					}
 					if(myAge() > delay && packet.getLastReceived().equals(new Long(0))) {
-						System.out.println("No Message Received in " + delay + " MilliSeconds, Beginning Timeout Counter with Phantom Message Timestamp");
+						print("No Message Received in " + delay + " MilliSeconds, Beginning Timeout Counter with Phantom Message Timestamp");
 						packet.updateLastReceived();
 					}
 				}

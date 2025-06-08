@@ -1,4 +1,4 @@
-package localside.listen;
+package localside;
 
 public interface MessageSender {
 

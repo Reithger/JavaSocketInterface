@@ -102,12 +102,12 @@ public class SocketControl {
 		socketInstances.get(label).assignTearDown(reference);
 	}
 	
-	public void runPythonSubProgramUnattached(String programPath, String listenPort, String sendPort, String ... arguments) {
-		SubProgramGenerator.runPythonSubProgram(programPath, listenPort, sendPort, arguments);
+	public void runPythonSubProgramUnattached(String programPath, String listenPort, String sendPort, boolean quiet, String ... arguments) {
+		SubProgramGenerator.runPythonSubProgram(programPath, listenPort, sendPort, quiet, arguments);
 	}
 	
-	public void runJavaSubProgramUnattached(String programPath, String listenPort, String sendPort, String ... arguments) {
-		SubProgramGenerator.runJavaSubProgram(programPath, listenPort, sendPort, arguments);
+	public void runJavaSubProgramUnattached(String programPath, String listenPort, String sendPort, boolean quiet, String ... arguments) {
+		SubProgramGenerator.runJavaSubProgram(programPath, listenPort, sendPort, quiet, arguments);
 	}
 	
 	public boolean verifySubprogramReady(String localFileContext, String fileName, String localReferencePath, String localJarPath) {
@@ -134,6 +134,10 @@ public class SocketControl {
 	
 	public void setInstanceTimingDelay(String label, int timingDelay) {
 		socketInstances.get(label).setTimingDelay(timingDelay);
+	}
+	
+	public void setInstanceQuiet(String label, boolean shh) {
+		socketInstances.get(label).setQuiet(shh);
 	}
 	
 	public void setInstanceSubprogramJava(String label, String programPath, String ... arguments) {

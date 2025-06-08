@@ -1,6 +1,6 @@
 package core;
 
-import localside.listen.MessageSender;
+import localside.MessageSender;
 
 public interface JavaSender {
 

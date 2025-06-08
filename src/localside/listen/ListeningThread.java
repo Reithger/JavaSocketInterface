@@ -20,7 +20,7 @@ public class ListeningThread extends KeepAliveThread{
 	
 	@Override
 	public void run() {
-		System.out.println("Starting Local Listener Service");
+		print("Starting Local Listener Service");
 		try {
 			packet.restartServer();
 			Socket client = packet.getClient();
@@ -37,7 +37,7 @@ public class ListeningThread extends KeepAliveThread{
 			e.printStackTrace();
 		}
 		finally {
-			System.out.println("Connection Died or Ended, Restarting Listener Processes");
+			print("Connection Died or Ended, Restarting Listener Processes");
 		}
 	}
 	

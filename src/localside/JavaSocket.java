@@ -2,9 +2,8 @@ package localside;
 
 import core.JavaReceiver;
 import core.JavaTeardown;
-import localside.listen.InitiateListening;
 import localside.listen.KeepAliveThread;
-import localside.listen.MessageSender;
+import localside.listen.SenderThread;
 import localside.listen.ThreadGenerator;
 import subprogram.SubProgram;
 
@@ -66,6 +65,8 @@ public class JavaSocket implements InitiateListening, MessageSender {
 	
 	private JavaTeardown terminate;
 	
+	private boolean quiet;
+	
 //---  Constructors   -------------------------------------------------------------------------
 	
 	public JavaSocket() {
@@ -123,10 +124,10 @@ public class JavaSocket implements InitiateListening, MessageSender {
 			}
 			iteratePortNumber();
 		}
-		System.out.println("Initiating Listening Process on Listen Port: " + currentListenPort + " and Send Port: " + currentSendPort);
+		print("Initiating Listening Process on Listen Port: " + currentListenPort + " and Send Port: " + currentSendPort);
 		startLocalListener(passTo);
 		if(subProgram != null)
-			subProgram.initiateSubprogram("" + currentListenPort, "" + currentSendPort);
+			subProgram.initiateSubprogram("" + currentListenPort, "" + currentSendPort, quiet);
 	}
 	
 	@Override
@@ -140,15 +141,13 @@ public class JavaSocket implements InitiateListening, MessageSender {
 	}
 	
 	private void startLocalListener(JavaReceiver reference){
-		packet = new ListenerPacket(currentListenPort, currentSendPort);
+		packet = new ListenerPacket(currentListenPort, currentSendPort, keepalive);
 		
 		KeepAliveThread listen = ThreadGenerator.generateListeningThread(packet, reference);
 		
 		KeepAliveThread timeOut = timeout == -1 ? null : ThreadGenerator.generateTimeOutThread(packet, this,  1000,  timeout, timingDelay, subProgram == null ? null : subProgram.getContext());
 		
-		KeepAliveThread keepAlive = keepalive == -1 ? null : ThreadGenerator.generateSignOfLifeThread(this, keepalive);
-		
-		packet.assignThreads(listen, timeOut, keepAlive);
+		packet.assignThreads(listen, timeOut);
 				
 		
 		listen.start();
@@ -157,9 +156,6 @@ public class JavaSocket implements InitiateListening, MessageSender {
 			timeOut.start();
 		}
 		
-		if(keepAlive != null) {
-			keepAlive.start();
-		}
 	}
 	
 	/**
@@ -197,7 +193,6 @@ public class JavaSocket implements InitiateListening, MessageSender {
 	
 	public void setSendPort(int in) {
 		currentSendPort = in >= 2000 && in <= 9999 ? in : START_PORT + 5;
-		
 	}
 	
 	public void setTimeout(int in) {
@@ -220,6 +215,11 @@ public class JavaSocket implements InitiateListening, MessageSender {
 		subProgram = in;
 	}
 	
+	public void setQuiet(boolean shh) {
+		quiet = shh;
+		KeepAliveThread.setQuiet(shh);
+	}
+	
 //---  Getter Methods   -----------------------------------------------------------------------
 
 	public int getCurrentListenPortNumber() {
@@ -228,6 +228,14 @@ public class JavaSocket implements InitiateListening, MessageSender {
 
 	public int getCurrentSendPortNumber() {
 		return currentSendPort;
+	}
+	
+//---  Support Methods   ----------------------------------------------------------------------
+	
+	private void print(String in) {
+		if(!quiet) {
+			System.out.println(in);
+		}
 	}
 	
 }

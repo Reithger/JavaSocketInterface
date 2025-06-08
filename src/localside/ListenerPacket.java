@@ -20,18 +20,20 @@ public class ListenerPacket {
 	private Long lastReceived;
 	private KeepAliveThread listener;
 	private KeepAliveThread timeOut;
-	private KeepAliveThread keepAlive;
 	private SenderThread messageSender;
 	
 	private int listenPort;
 	private int sendPort;
 	
+	private int keepalive;
+	
 //---  Constructors   -------------------------------------------------------------------------
 	
-	public ListenerPacket(int inListen, int inSend) {
+	public ListenerPacket(int inListen, int inSend, int keepAliveTimer) {
 		lastReceived = new Long(0);
 		listenPort = inListen;
 		sendPort = inSend;
+		keepalive = keepAliveTimer;
 	}
 	
 //---  Operations   ---------------------------------------------------------------------------
@@ -64,10 +66,6 @@ public class ListenerPacket {
 			timeOut.end();
 			timeOut.interrupt();
 		}
-		if(keepAlive != null) {
-			keepAlive.end();
-			keepAlive.interrupt();
-		}
 		if(messageSender != null) {
 			messageSender.end();
 			messageSender.interrupt();
@@ -93,16 +91,18 @@ public class ListenerPacket {
 	
 	public void sendMessage(String message) {
 		if(messageSender == null) {
-			messageSender = new SenderThread(sendPort);
+			messageSender = new SenderThread(sendPort, keepalive);
 			messageSender.start();
 		}
 		messageSender.queueMessage(message);
 	}
 	
-	public void assignThreads(KeepAliveThread listen, KeepAliveThread time, KeepAliveThread signOfLife) {
+	public void assignThreads(KeepAliveThread listen, KeepAliveThread time) {
 		listener = listen;
 		timeOut = time;
-		keepAlive = signOfLife;
+		if(keepalive != -1) {
+			sendMessage("Handshake Protocol Initated, Sender Thread Spin Up Begun");
+		}
 	}
 
 //---  Getter Methods   -----------------------------------------------------------------------0

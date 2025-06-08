@@ -1,7 +1,9 @@
 package localside.listen;
 
 import core.JavaReceiver;
+import localside.InitiateListening;
 import localside.ListenerPacket;
+import localside.MessageSender;
 
 public class ThreadGenerator {
 
@@ -13,8 +15,4 @@ public class ThreadGenerator {
 		return new TimeOutThread(packet, restart, checkRate, timeout, timingDelay, context);
 	}
 
-	public static KeepAliveThread generateSignOfLifeThread(MessageSender packet, int keepalive) {
-		return new SignOfLifeThread(packet, keepalive);
-	}
-	
 }

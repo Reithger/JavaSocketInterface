@@ -11,15 +11,17 @@ public class SenderThread extends KeepAliveThread{
 	private static final int CONNECTION_FAILED_TIMEOUT = 15;
 	
 	private int destinationPort;
+	private int keepAlive;
 	
 	private Socket sender;
 	private volatile BufferedWriter writer;
 	
 	private volatile LinkedList<String> messagesToSend;
 	
-	public SenderThread(int senderPort) {
+	public SenderThread(int senderPort, int keepAliveTimer) {
 		destinationPort = senderPort;
 		messagesToSend = new LinkedList<String>();
+		keepAlive = keepAliveTimer;
 	}
 	
 	@Override
@@ -43,12 +45,8 @@ public class SenderThread extends KeepAliveThread{
 			while(!messagesToSend.isEmpty() && !bailOnSending) {
 				String send = messagesToSend.peek();
 				try {
-					writer.write(send);
-					writer.newLine();
-					writer.flush();
+					sendMessage(send);
 					messagesToSend.poll();
-					System.out.println("To: " + destinationPort + ", message sent: " + send);
-					Thread.sleep(10);
 				}
 				catch(Exception e) {
 					e.printStackTrace();
@@ -56,11 +54,21 @@ public class SenderThread extends KeepAliveThread{
 				}
 			}
 			try {
-				Thread.sleep(100);
+				Thread.sleep(keepAlive == -1 ? 10000 : keepAlive);
+				if(keepAlive != -1) {
+					messagesToSend.add("Keepalive message");
+				}
 			} catch (InterruptedException e) {
-				e.printStackTrace();
+				//e.printStackTrace();
 			}
 		}
+	}
+	
+	private void sendMessage(String send) throws Exception{
+		writer.write(send);
+		writer.newLine();
+		writer.flush();
+		print("To: " + destinationPort + ", message sent: " + send);
 	}
 	
 	private void establishWriter() {
@@ -78,11 +86,11 @@ public class SenderThread extends KeepAliveThread{
 		while(sender == null && getKeepAliveStatus() && count < CONNECTION_FAILED_TIMEOUT) {
 			try {
 				sender = new Socket("127.0.0.1", destinationPort);
-				System.out.println("Connection established to destination port: " + destinationPort);
+				print("Connection established to destination port: " + destinationPort);
 			}
 			catch(Exception e) {
 				//e.printStackTrace();
-				System.err.println("Error: Sender thread not connecting to send messages on port: " + destinationPort);
+				error("Error: Sender thread not connecting to send messages on port: " + destinationPort);
 				try {
 					Thread.sleep(1000);
 				} catch (InterruptedException e1) {
@@ -97,6 +105,7 @@ public class SenderThread extends KeepAliveThread{
 	
 	public void queueMessage(String message) {
 		messagesToSend.add(message);
+		this.interrupt();
 	}
 	
 }
