@@ -5,6 +5,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -48,22 +50,33 @@ public class SubprogramFileValidation {
 		File g = new File(localFileStorage);
 		g.mkdirs();
 		File f = new File(localFileStorage + "/" + fileName);
-		if(!f.exists() || !validateFileCorrect(f, localPath, jarPath)) {
+		if(!f.exists() && fileName.endsWith(".jar")) {
+			InputStream is = getInputStream(localPath, jarPath);
 			try {
-				ArrayList<String> contents = getTemplateSubprogramContents(localPath, jarPath);
-				f.delete();
-				f.createNewFile();
-				RandomAccessFile raf = new RandomAccessFile(f, "rw");
-				for(String s : contents) {
-					raf.writeBytes(s + "\n");
-				}
-				raf.close();
-				return true;
+				Files.copy(is, f.toPath());
 			} catch (IOException e) {
+				// TODO Auto-generated catch block
 				e.printStackTrace();
-				return false;
 			}
-			
+		}
+		else {
+			if(!f.exists() || !validateFileCorrect(f, localPath, jarPath)) {
+				try {
+					ArrayList<String> contents = getTemplateSubprogramContents(localPath, jarPath);
+					f.delete();
+					f.createNewFile();
+					RandomAccessFile raf = new RandomAccessFile(f, "rw");
+					for(String s : contents) {
+						raf.writeBytes(s + "\n");
+					}
+					raf.close();
+					return true;
+				} catch (IOException e) {
+					e.printStackTrace();
+					return false;
+				}
+				
+			}
 		}
 		return true;
 	}
@@ -117,24 +130,28 @@ public class SubprogramFileValidation {
 	 */
 	
 	private static ArrayList<String> getTemplateSubprogramContents(String localPath, String jarPath) {
-		InputStream is = null;
-		Scanner sc;
-		try {
-			is = SubprogramFileValidation.class.getResourceAsStream(localPath);
-			if(is == null) {
-				is = SubprogramFileValidation.class.getResourceAsStream(jarPath);
-			}
-			sc = new Scanner(is);
-		}
-		catch(Exception e) {
-			is = SubprogramFileValidation.class.getResourceAsStream(jarPath);
-			sc = new Scanner(is);
-		}
+		InputStream is = getInputStream(localPath, jarPath);
+		Scanner sc = new Scanner(is);
+		
 		ArrayList<String> out = new ArrayList<String>();
 		while(sc.hasNextLine()) {
 			out.add(sc.nextLine());
 		}
 		sc.close();
 		return out;
+	}
+	
+	private static InputStream getInputStream(String localPath, String jarPath) {
+		InputStream is = null;
+		try {
+			is = SubprogramFileValidation.class.getResourceAsStream(localPath);
+			if(is == null) {
+				is = SubprogramFileValidation.class.getResourceAsStream(jarPath);
+			}
+		}
+		catch(Exception e) {
+			is = SubprogramFileValidation.class.getResourceAsStream(jarPath);
+		}
+		return is;
 	}
 }
