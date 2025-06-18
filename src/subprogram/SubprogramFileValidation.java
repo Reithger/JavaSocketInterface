@@ -50,13 +50,15 @@ public class SubprogramFileValidation {
 		File g = new File(localFileStorage);
 		g.mkdirs();
 		File f = new File(localFileStorage + "/" + fileName);
-		if(!f.exists() && fileName.endsWith(".jar")) {
-			InputStream is = getInputStream(localPath, jarPath);
-			try {
-				Files.copy(is, f.toPath());
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+		if(fileName.endsWith(".jar")) {
+			if(!f.exists()) {
+				InputStream is = getInputStream(localPath, jarPath);
+				try {
+					Files.copy(is, f.toPath());
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
 		}
 		else {
