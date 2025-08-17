@@ -8,24 +8,29 @@ import java.util.LinkedList;
 
 public class SenderThread extends KeepAliveThread{
 
-	private static final int CONNECTION_FAILED_TIMEOUT = 15;
 	
 	private int destinationPort;
 	private int keepAlive;
+	private int connectionAttempts;
 	
 	private Socket sender;
 	private volatile BufferedWriter writer;
 	
 	private volatile LinkedList<String> messagesToSend;
 	
-	public SenderThread(int senderPort, int keepAliveTimer) {
+	private volatile boolean active;
+
+	public SenderThread(int senderPort, int keepAliveTimer, int numConnectionAttempts) {
 		destinationPort = senderPort;
 		messagesToSend = new LinkedList<String>();
 		keepAlive = keepAliveTimer;
+		connectionAttempts = numConnectionAttempts;
+		active = false;
 	}
 	
 	@Override
 	public void run() {
+		active = true;
 		try {
 			connectToDestination();
 			
@@ -83,7 +88,7 @@ public class SenderThread extends KeepAliveThread{
 	
 	private void connectToDestination() throws Exception{
 		int count = 0;
-		while(sender == null && getKeepAliveStatus() && count < CONNECTION_FAILED_TIMEOUT) {
+		while(sender == null && getKeepAliveStatus() && (count < connectionAttempts || connectionAttempts == -1)) {
 			try {
 				sender = new Socket("127.0.0.1", destinationPort);
 				print("Connection established to destination port: " + destinationPort);
@@ -98,14 +103,19 @@ public class SenderThread extends KeepAliveThread{
 				count++;
 			}
 		}
-		if(count >= CONNECTION_FAILED_TIMEOUT) {
+		if(count >= connectionAttempts && connectionAttempts != -1) {
 			throw new Exception("Unable to connect Sender thread on port: " + destinationPort + ", terminating Message Sending capabilities.");
 		}
 	}
 	
 	public void queueMessage(String message) {
 		messagesToSend.add(message);
-		this.interrupt();
+		if(sender != null)
+			this.interrupt();
+	}
+	
+	public boolean getActiveStatus() {
+		return active;
 	}
 	
 }

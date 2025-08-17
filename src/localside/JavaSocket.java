@@ -3,7 +3,6 @@ package localside;
 import core.JavaReceiver;
 import core.JavaTeardown;
 import localside.listen.KeepAliveThread;
-import localside.listen.SenderThread;
 import localside.listen.ThreadGenerator;
 import subprogram.SubProgram;
 
@@ -46,13 +45,14 @@ public class JavaSocket implements InitiateListening, MessageSender {
 	
 	private final static int TIMING_DELAY = 5000;
 	
+	private static final int CONNECTION_FAILED_TIMEOUT = 15;
+	
 //---  Instance Variables   -------------------------------------------------------------------
 	
 	private JavaReceiver passTo;
 	private SubProgram subProgram;
 	private int currentListenPort;
 	private int currentSendPort;
-	private int timingDelay;
 	
 	/** int value used to denote how long to wait for a message from the listened-to port before resetting the connection;
 	 * a value of -1 denotes do not track last message received for timing out*/
@@ -60,6 +60,11 @@ public class JavaSocket implements InitiateListening, MessageSender {
 	/** int value used to denote how frequently to send a keepalive message to the connected-to port;
 	 * a value of -1 denotes do not send keep alive messages*/
 	private int keepalive;
+	/** int value used to denote */
+	private int timingDelay;
+	/** int value to denote how many failed attempts to set up a sender connection should be made before throwing an error;
+	 * set to -1 to never stop trying to establish a connection*/
+	private int connectionAttempts;
 	
 	private volatile ListenerPacket packet;
 	
@@ -75,14 +80,16 @@ public class JavaSocket implements InitiateListening, MessageSender {
 		setTimeout(TIMEOUT_PERIOD);
 		setTimingDelay(TIMING_DELAY);
 		setKeepAlive(KEEP_ALIVE_DEFAULT);
+		setSenderConnectionAttempts(CONNECTION_FAILED_TIMEOUT);
 	}
 	
-	public JavaSocket(int listenPort, int sendPort, int timeout, int keepalive, int timingDelay) {
+	public JavaSocket(int listenPort, int sendPort, int timeout, int keepalive, int timingDelay, int connectAttempts) {
 		setListenPort(listenPort);
 		setSendPort(sendPort);
 		setTimeout(timeout);
 		setKeepAlive(keepalive);
 		setTimingDelay(timingDelay);
+		setSenderConnectionAttempts(connectAttempts);
 	}
 	
 	public JavaSocket(JavaReceiver reference) {
@@ -92,6 +99,7 @@ public class JavaSocket implements InitiateListening, MessageSender {
 		setTimeout(TIMEOUT_PERIOD);
 		setTimingDelay(TIMING_DELAY);
 		setKeepAlive(KEEP_ALIVE_DEFAULT);
+		setSenderConnectionAttempts(CONNECTION_FAILED_TIMEOUT);
 	}
 	
 	public JavaSocket(JavaReceiver reference, SubProgram runnable) {
@@ -102,6 +110,7 @@ public class JavaSocket implements InitiateListening, MessageSender {
 		setTimeout(TIMEOUT_PERIOD);
 		setTimingDelay(TIMING_DELAY);
 		setKeepAlive(KEEP_ALIVE_DEFAULT);
+		setSenderConnectionAttempts(CONNECTION_FAILED_TIMEOUT);
 	}
 
 //---  Operations   ---------------------------------------------------------------------------
@@ -141,13 +150,15 @@ public class JavaSocket implements InitiateListening, MessageSender {
 	}
 	
 	private void startLocalListener(JavaReceiver reference){
-		packet = new ListenerPacket(currentListenPort, currentSendPort, keepalive);
+		packet = new ListenerPacket(currentListenPort, currentSendPort, keepalive, quiet);
 		
 		KeepAliveThread listen = ThreadGenerator.generateListeningThread(packet, reference);
 		
 		KeepAliveThread timeOut = timeout == -1 ? null : ThreadGenerator.generateTimeOutThread(packet, this,  1000,  timeout, timingDelay, subProgram == null ? null : subProgram.getContext());
 		
-		packet.assignThreads(listen, timeOut);
+		KeepAliveThread sender = ThreadGenerator.generateSenderThread(currentSendPort, keepalive, connectionAttempts);
+		
+		packet.assignThreads(listen, timeOut, sender);
 				
 		
 		listen.start();
@@ -205,6 +216,10 @@ public class JavaSocket implements InitiateListening, MessageSender {
 	
 	public void setTimingDelay(int in) {
 		timingDelay = in < 0 ? 0 : in;
+	}
+	
+	public void setSenderConnectionAttempts(int in) {
+		connectionAttempts = in < 0 ? -1 : in;
 	}
 	
 	public void setReceiver(JavaReceiver in) {

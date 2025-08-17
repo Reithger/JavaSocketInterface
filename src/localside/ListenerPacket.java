@@ -1,9 +1,5 @@
 package localside;
 
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.Writer;
-import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -27,13 +23,16 @@ public class ListenerPacket {
 	
 	private int keepalive;
 	
+	private boolean quiet;
+	
 //---  Constructors   -------------------------------------------------------------------------
 	
-	public ListenerPacket(int inListen, int inSend, int keepAliveTimer) {
+	public ListenerPacket(int inListen, int inSend, int keepAliveTimer, boolean inQuiet) {
 		lastReceived = new Long(0);
 		listenPort = inListen;
 		sendPort = inSend;
 		keepalive = keepAliveTimer;
+		quiet = inQuiet;
 	}
 	
 //---  Operations   ---------------------------------------------------------------------------
@@ -50,9 +49,10 @@ public class ListenerPacket {
 			}
 			server = new ServerSocket(listenPort);
 			client = server.accept();
-			System.out.println("Client connection established with: " + client);
+			print("Client connection established with: " + client);
 		}
 		catch(Exception e) {
+			print("Error in restarting server for listening address: " + listenPort);
 			e.printStackTrace();
 		}
 	}
@@ -90,16 +90,16 @@ public class ListenerPacket {
 	}
 	
 	public void sendMessage(String message) {
-		if(messageSender == null) {
-			messageSender = new SenderThread(sendPort, keepalive);
+		if(!messageSender.getActiveStatus()) {
 			messageSender.start();
 		}
 		messageSender.queueMessage(message);
 	}
 	
-	public void assignThreads(KeepAliveThread listen, KeepAliveThread time) {
+	public void assignThreads(KeepAliveThread listen, KeepAliveThread time, KeepAliveThread sendThread) {
 		listener = listen;
 		timeOut = time;
+		messageSender = (SenderThread)sendThread;
 		if(keepalive != -1) {
 			sendMessage("Handshake Protocol Initated, Sender Thread Spin Up Begun");
 		}
@@ -119,4 +119,9 @@ public class ListenerPacket {
 		return lastReceived;
 	}
 	
+	public void print(String in) {
+		if(!quiet) {
+			System.out.println(in);
+		}
+	}
 }

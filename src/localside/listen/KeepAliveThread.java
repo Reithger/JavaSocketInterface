@@ -2,16 +2,16 @@ package localside.listen;
 
 public abstract class KeepAliveThread extends Thread {
 
-	private volatile boolean keepAlive;
+	private volatile boolean keepAliveStatus;
 	
 	private static boolean quiet;
 	
 	public KeepAliveThread() {
-		keepAlive = true;
+		keepAliveStatus = true;
 	}
 	
 	public void end() {
-		keepAlive = false;
+		keepAliveStatus = false;
 	}
 	
 	public static void setQuiet(boolean shh) {
@@ -23,7 +23,7 @@ public abstract class KeepAliveThread extends Thread {
 	}
 	
 	protected boolean getKeepAliveStatus() {
-		return keepAlive;
+		return keepAliveStatus;
 	}
 	
 	public void print(String in) {

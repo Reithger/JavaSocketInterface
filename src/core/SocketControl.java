@@ -136,6 +136,10 @@ public class SocketControl {
 		socketInstances.get(label).setTimingDelay(timingDelay);
 	}
 	
+	public void setInstanceSenderConnectionAttempts(String label, int connectAttempt) {
+		socketInstances.get(label).setSenderConnectionAttempts(connectAttempt);
+	}
+	
 	public void setInstanceQuiet(String label, boolean shh) {
 		socketInstances.get(label).setQuiet(shh);
 	}

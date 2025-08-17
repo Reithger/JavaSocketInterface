@@ -20,7 +20,7 @@ public class ListeningThread extends KeepAliveThread{
 	
 	@Override
 	public void run() {
-		print("Starting Local Listener Service");
+		print("Starting Local Listener Service at " + packet.getServer());
 		try {
 			packet.restartServer();
 			Socket client = packet.getClient();
