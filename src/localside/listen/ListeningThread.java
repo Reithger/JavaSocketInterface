@@ -1,19 +1,28 @@
 package localside.listen;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.net.Socket;
 
 import core.JavaReceiver;
+import localside.ConnectionsManager;
 import localside.ListenerPacket;
+
+/**
+ * Subclass of KeepAliveThread that maintains a listening status on the ServerSocket
+ * object for new connections being made; if one occurs, a new Connection object is
+ * instantiated through the ConnectionsManager and the JavaReceiver object for this
+ * project is assigned to it.
+ * 
+ */
 
 public class ListeningThread extends KeepAliveThread{
 
 	private volatile ListenerPacket packet;
 	private JavaReceiver reference;
+	private ConnectionsManager connections;
 	
-	public ListeningThread(ListenerPacket context, JavaReceiver refSend) {
+	public ListeningThread(ListenerPacket context, JavaReceiver refSend, ConnectionsManager conMan) {
 		super();
+		connections = conMan;
 		packet = context;
 		reference = refSend;
 	}
@@ -22,15 +31,12 @@ public class ListeningThread extends KeepAliveThread{
 	public void run() {
 		print("Starting Local Listener Service at " + packet.getServer());
 		try {
-			packet.restartServer();
-			Socket client = packet.getClient();
-			BufferedReader receiver = new BufferedReader(new InputStreamReader(client.getInputStream()));
-			String received = receiver.readLine();
-			while(received != null && !received.equals("exit") && getKeepAliveStatus()) {
-				packet.updateLastReceived();
-				if(!received.equals(""))
-					reference.receiveSocketData(received);
-				received = receiver.readLine();
+			packet.startServer();
+			while(!packet.getServer().isClosed() && this.getKeepAliveStatus()) {
+				Socket client = packet.getServer().accept();
+				connections.addConnection("" + client.getPort(), client);
+				connections.getConnection("" + client.getPort()).setReceiver(reference);
+				connections.startConnection("" + client.getPort());
 			}
 		}
 		catch(Exception e) {

@@ -2,24 +2,37 @@ package localside;
 
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 
 import localside.listen.KeepAliveThread;
 import localside.listen.SenderThread;
 
-public class ListenerPacket {
+/**
+ * Poorly named class after the design revisions we've gone through.
+ * 
+ * Contains consistent access to relevant data needed for various Threads to
+ * operate in sync, initiation logic for starting the Threads and their operation,
+ * and manages the dynamically present Connections.
+ * 
+ * This class is the core logic pivot between the user-visible side of things in
+ * SocketControl and JavaSocket and the various Threads and other backend logic.
+ * 
+ */
+
+public class ListenerPacket implements ConnectionsManager {
 	
 //---  Instance Variables   -------------------------------------------------------------------
 
 	private volatile ServerSocket server;
-	private volatile Socket client;
+	private volatile HashMap<String, Connection> clients;
 	
-	private Long lastReceived;
 	private KeepAliveThread listener;
 	private KeepAliveThread timeOut;
 	private SenderThread messageSender;
 	
 	private int listenPort;
-	private int sendPort;
 	
 	private int keepalive;
 	
@@ -27,29 +40,19 @@ public class ListenerPacket {
 	
 //---  Constructors   -------------------------------------------------------------------------
 	
-	public ListenerPacket(int inListen, int inSend, int keepAliveTimer, boolean inQuiet) {
-		lastReceived = new Long(0);
+	public ListenerPacket(int inListen, int keepAliveTimer, boolean inQuiet) {
 		listenPort = inListen;
-		sendPort = inSend;
 		keepalive = keepAliveTimer;
 		quiet = inQuiet;
+		clients = new HashMap<String, Connection>();
 	}
 	
 //---  Operations   ---------------------------------------------------------------------------
 	
-	public void updateLastReceived() {
-		lastReceived = System.currentTimeMillis();
-	}
-
-	public void restartServer() {
+	public void startServer() {
 		try {
-			if(server != null) {
-				server.close();
-				client.close();
-			}
 			server = new ServerSocket(listenPort);
-			client = server.accept();
-			print("Client connection established with: " + client);
+			print("Server established with: " + server);
 		}
 		catch(Exception e) {
 			print("Error in restarting server for listening address: " + listenPort);
@@ -80,8 +83,8 @@ public class ListenerPacket {
 			e.printStackTrace();
 		}
 		try {
-			if(client != null && !client.isClosed()) {
-				client.close();
+			for(Connection c : clients.values()) {
+				this.terminateConnection(c.getTitle());
 			}
 		}
 		catch(Exception e) {
@@ -89,11 +92,23 @@ public class ListenerPacket {
 		}
 	}
 	
-	public void sendMessage(String message) {
-		if(!messageSender.getActiveStatus()) {
-			messageSender.start();
+	public void sendMessage(String message, String tag) {
+		for(Connection c : clients.values()) {
+			if(c.hasTag(tag)) {
+				c.queueMessage(message);
+			}
 		}
-		messageSender.queueMessage(message);
+	}
+	
+	public void sendMessage(String message, ArrayList<String> tag) {
+		for(Connection c : clients.values()) {
+			for(String s : tag) {
+				if(c.hasTag(s)) {
+					c.queueMessage(message);
+					break;
+				}
+			}
+		}
 	}
 	
 	public void assignThreads(KeepAliveThread listen, KeepAliveThread time, KeepAliveThread sendThread) {
@@ -101,22 +116,53 @@ public class ListenerPacket {
 		timeOut = time;
 		messageSender = (SenderThread)sendThread;
 		if(keepalive != -1) {
-			sendMessage("Handshake Protocol Initated, Sender Thread Spin Up Begun");
+			sendMessage("Handshake Protocol Initated, Sender Thread Spin Up Begun", Connection.TAG_ALL);
 		}
 	}
+	
+	@Override
+	public void startConnection(String title) {
+		Connection c = getConnection(title);
+		if(c != null) {
+			c.start();
+		}
+	}
+	
 
+	@Override
+	public void terminateConnection(String title) {
+		Connection c = getConnection(title);
+		if(c != null) {
+			c.end();
+			c.interrupt();
+		}
+	}
+	
+
+	@Override
+	public void addConnection(String title, Socket client) {
+		clients.put(title, new Connection(client, title));
+	}
+
+	@Override
+	public void addConnection(String title, int clientPort) throws Exception{
+		clients.put(title, new Connection(clientPort, title));
+	}
+	
+
+
+	@Override
+	public void addTag(String title, String tag) {
+		Connection c = getConnection(title);
+		if(c != null) {
+			c.addTag(tag);
+		}
+	}
+	
 //---  Getter Methods   -----------------------------------------------------------------------0
 	
 	public ServerSocket getServer() {
 		return server;
-	}
-	
-	public Socket getClient() {
-		return client;
-	}
-	
-	public Long getLastReceived() {
-		return lastReceived;
 	}
 	
 	public void print(String in) {
@@ -124,4 +170,25 @@ public class ListenerPacket {
 			System.out.println(in);
 		}
 	}
+
+	
+	@Override
+	public HashMap<String, Connection> getConnections() {
+		return clients;
+	}
+	
+
+	@Override
+	public Collection<Connection> getConnectionList() {
+		return clients.values();
+	}
+	
+
+	@Override
+	public Connection getConnection(String title) {
+		return clients.get(title);
+	}
+
+
+
 }

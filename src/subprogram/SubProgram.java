@@ -38,7 +38,7 @@ public interface SubProgram {
 	 * @param sendPort
 	 */
 
-	public abstract void initiateSubprogram(String listenPort, String sendPort, boolean quiet);
+	public abstract void initiateSubprogram(String listenPort, boolean quiet);
 	
 	public abstract String getContext();
 	

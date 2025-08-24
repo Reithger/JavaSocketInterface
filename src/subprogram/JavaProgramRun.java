@@ -26,9 +26,9 @@ public class JavaProgramRun implements SubProgram {
 	}
 	
 	@Override
-	public void initiateSubprogram(String listenPort, String sendPort, boolean quiet) {
+	public void initiateSubprogram(String listenPort, boolean quiet) {
 		StringBuilder command = new StringBuilder();
-		command.append("java -jar " + runPath + (listenPort == null ? "" : (" " + listenPort + " " + sendPort)));
+		command.append("java -jar " + runPath + (listenPort == null ? "" : (" " + listenPort)));
 		for(String s : arguments) {
 			command.append(" " + s);
 		}

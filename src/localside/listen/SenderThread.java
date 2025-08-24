@@ -1,57 +1,56 @@
 package localside.listen;
 
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.net.Socket;
-import java.util.LinkedList;
+import localside.Connection;
+import localside.ConnectionsManager;
+
+/**
+ * KeepAliveThread subclass that processes queued messages to send out to clients/end-points.
+ * 
+ * Relies on ConnectionManager interface for accessing Connection objects.
+ * 
+ * Sends out a KeepAlive message on all Connections periodically if set to do so.
+ * 
+ * TODO: Make each Connection have a unique keepalive timer?
+ * 
+ */
 
 public class SenderThread extends KeepAliveThread{
 
+//---  Instance Variables   -------------------------------------------------------------------
 	
-	private int destinationPort;
 	private int keepAlive;
-	private int connectionAttempts;
 	
-	private Socket sender;
-	private volatile BufferedWriter writer;
+	private ConnectionsManager connections;
 	
-	private volatile LinkedList<String> messagesToSend;
-	
-	private volatile boolean active;
+//---  Constructors   -------------------------------------------------------------------------
 
-	public SenderThread(int senderPort, int keepAliveTimer, int numConnectionAttempts) {
-		destinationPort = senderPort;
-		messagesToSend = new LinkedList<String>();
+	public SenderThread(int keepAliveTimer, ConnectionsManager inCon) {
+		connections = inCon;
 		keepAlive = keepAliveTimer;
-		connectionAttempts = numConnectionAttempts;
-		active = false;
 	}
+	
+//---  Operations   ---------------------------------------------------------------------------
 	
 	@Override
 	public void run() {
-		active = true;
 		try {
-			connectToDestination();
-			
-			establishWriter();
-
 			processMessageQueue();
 		} catch (Exception e) {
 			e.printStackTrace();
 			end();
 		}
-		
 	}
 	
 	private void processMessageQueue() {
 		while(getKeepAliveStatus()) {
 			boolean bailOnSending = false;
-			while(!messagesToSend.isEmpty() && !bailOnSending) {
-				String send = messagesToSend.peek();
+			while(messagesLeft() && !bailOnSending) {
 				try {
-					sendMessage(send);
-					messagesToSend.poll();
+					for(Connection c : connections.getConnectionList()) {
+						while(c.hasMessage()) {
+							c.sendViableMessage();
+						}
+					}
 				}
 				catch(Exception e) {
 					e.printStackTrace();
@@ -61,7 +60,9 @@ public class SenderThread extends KeepAliveThread{
 			try {
 				Thread.sleep(keepAlive == -1 ? 10000 : keepAlive);
 				if(keepAlive != -1) {
-					messagesToSend.add("Keepalive message");
+					for(Connection c : connections.getConnectionList()) {
+						c.queueMessage("Keepalive message from " + c.getIdentity());
+					}
 				}
 			} catch (InterruptedException e) {
 				//e.printStackTrace();
@@ -69,53 +70,27 @@ public class SenderThread extends KeepAliveThread{
 		}
 	}
 	
-	private void sendMessage(String send) throws Exception{
-		writer.write(send);
-		writer.newLine();
-		writer.flush();
-		print("To: " + destinationPort + ", message sent: " + send);
-	}
-	
-	private void establishWriter() {
-		if(writer == null && sender != null) {
-			try {
-				writer = new BufferedWriter(new OutputStreamWriter(sender.getOutputStream(), "UTF-8"));
-			} catch (IOException e) {
-				e.printStackTrace();
+	private boolean messagesLeft() {
+		for(Connection c : connections.getConnectionList()) {
+			if(c.hasMessage()) {
+				return true;
 			}
 		}
+		return false;
 	}
-	
-	private void connectToDestination() throws Exception{
-		int count = 0;
-		while(sender == null && getKeepAliveStatus() && (count < connectionAttempts || connectionAttempts == -1)) {
-			try {
-				sender = new Socket("127.0.0.1", destinationPort);
-				print("Connection established to destination port: " + destinationPort);
-			}
-			catch(Exception e) {
-				//e.printStackTrace();
-				error("Error: Sender thread not connecting to send messages on port: " + destinationPort);
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e1) {
-				}
-				count++;
-			}
-		}
-		if(count >= connectionAttempts && connectionAttempts != -1) {
-			throw new Exception("Unable to connect Sender thread on port: " + destinationPort + ", terminating Message Sending capabilities.");
-		}
-	}
-	
-	public void queueMessage(String message) {
-		messagesToSend.add(message);
-		if(sender != null)
+
+	public void queueMessage(String title, String message) throws Exception {
+		Connection sender = connections.getConnection(title);
+		if(sender != null) {
+			sender.queueMessage(message);
 			this.interrupt();
+		}
+		else {
+			throw new Exception("Attempt to send message via non-existent Connection: " + title);
+		}
 	}
 	
-	public boolean getActiveStatus() {
-		return active;
-	}
+//--- Getter Methods   ------------------------------------------------------------------------
+
 	
 }
