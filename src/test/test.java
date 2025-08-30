@@ -1,7 +1,11 @@
 package test;
 
+import java.util.ArrayList;
+
 import core.JavaReceiver;
+import core.JavaSender;
 import core.SocketControl;
+import localside.MessageSender;
 
 public class test {
 
@@ -11,6 +15,8 @@ public class test {
 		// For listening to and establishing a Captions sub-program that controls this program
 		
 		setupCaptionsInterpreter(socket);
+		
+		setupSender(socket, socket.getInstanceListenPort("text"));
 		
 		
 		// For listening to a remote accessor that can cause things to happen
@@ -33,7 +39,7 @@ public class test {
 	private static void setupCaptionsInterpreterInterpreter(SocketControl socket) {
 		socket.createSocketInstance("captions");
 		
-		socket.setInstanceListenPort("captions", 6000);
+		socket.setInstanceListenPortRandom("captions");
 		
 		socket.verifySubprogramReady("./distdac/", "StylizedCaptions.jar", "../assets/StylizedCaptions.jar", "/control/assets/StylizedCaptions.jar");		
 		socket.setInstanceSubprogramJava("captions", "./distdac/StylizedCaptions.jar");
@@ -44,7 +50,51 @@ public class test {
 		socket.setInstanceKeepAlive("captions", 2000);
 		socket.setInstanceTimeout("captions", 10000);
 		
-		socket.runSocketInstance("captions");
+		try {
+			socket.runSocketInstance("captions");
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	private static void setupSender(SocketControl socket, int port) {
+		socket.createSocketInstance("sending");
+		
+		socket.attachJavaReceiver("sending", new reader(false));
+		
+		sender s = new sender();
+		
+		socket.attachJavaSender("sending", s);
+		
+		socket.setInstanceQuiet("sending", true);
+		
+		try {
+			socket.runSocketInstance("sending");
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		try {
+			socket.addInstanceSendPort("sending", "sender", port);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		socket.addInstanceSendPortTag("sending", "sender", "TEST");
+
+		while(true) {
+			s.sendMessage("Hello!");
+			try {
+				Thread.sleep(200);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	private static void setupCaptionsInterpreter(SocketControl socket) {
@@ -52,13 +102,40 @@ public class test {
 		
 		socket.verifySubprogramReady("./captions", "voice-to-text.py", "../assets/voice-to-text.py", "/control/assets/voice-to-text.py");
 		
-		socket.setInstanceListenPort("text", 3500);
+		socket.setInstanceListenPortRandom("text");
 
 		socket.attachJavaReceiver("text", new reader(true));
 		
 		socket.setInstanceSubprogramPython("text", "./captions/voice-to-text.py");
+		
+		//socket.setInstanceQuiet("text", true);
 
-		socket.runSocketInstance("text");	
+		try {
+			socket.runSocketInstance("text");
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}	
+	}
+	
+}
+
+class sender implements JavaSender {
+
+	private MessageSender ms;
+	
+	@Override
+	public void receiveMessageSender(MessageSender sender) {
+		ms = sender;
+	}
+	
+	public void sendMessage(String in) {
+		try {
+			ms.sendMessage("sender", "Hello!");
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 }
@@ -76,11 +153,18 @@ class reader implements JavaReceiver{
 	}
 	
 	@Override
-	public void receiveSocketData(String socketData) {
+	public void receiveSocketData(String socketData, ArrayList<String> tags) {
+		//System.out.println("Raw: " + socketData);
 		if(clean) {
-			if(socketData.contains("partial") || socketData.contains("text")) {
-				socketData = cleanInput(socketData);
-				System.out.println("Host received message: " + socketData);
+			if(tags.contains("VTT")) {
+				if(socketData.contains("partial") || socketData.contains("text")) {
+					socketData = cleanInput(socketData);
+					System.out.println("Tags: " + tags.toString());
+					System.out.println("Host received message: " + socketData);
+				}
+			}
+			else {
+				System.out.println("~~~Sender Sent In: " + socketData + " " + tags);
 			}
 		}
 		else {

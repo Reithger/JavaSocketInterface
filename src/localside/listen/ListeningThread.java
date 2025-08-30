@@ -29,21 +29,25 @@ public class ListeningThread extends KeepAliveThread{
 	
 	@Override
 	public void run() {
-		print("Starting Local Listener Service at " + packet.getServer());
+		if(!packet.isServerEstablished()) {
+			print("Listening Thread ending due to no listening port being established");
+			return;
+		}
 		try {
-			packet.startServer();
+			print("\n---Listening Thread now monitoring new connection to establish clients");
 			while(!packet.getServer().isClosed() && this.getKeepAliveStatus()) {
 				Socket client = packet.getServer().accept();
 				connections.addConnection("" + client.getPort(), client);
 				connections.getConnection("" + client.getPort()).setReceiver(reference);
 				connections.startConnection("" + client.getPort());
+				print("Client established with identity: " + client);
 			}
 		}
 		catch(Exception e) {
 			e.printStackTrace();
 		}
 		finally {
-			print("Connection Died or Ended, Restarting Listener Processes");
+			print("Connection Died or Ended, Ending Listener Processes");
 		}
 	}
 	

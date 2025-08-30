@@ -57,13 +57,28 @@ public class TimeOutThread extends KeepAliveThread{
 					}
 					else {
 						if(c.checkInitiated()) {
-							print("Initial Communication Not Received: Listener Thread (" + (packet.getServer()) + ") has not received initial communication with process yet");
+							if(c.hasTag(Connection.TAG_SENDER)) {
+								print("\n---Initial Communication Not Received: Sender Socket (" + (c) + ") has not received initial communication with process yet");
+							}
+							else {
+								print("\n---Initial Communication Not Received: Listener Thread (" + (packet.getServer()) + ") has not received initial communication with process yet");
+							}
 						}
 						else {
-							print("Still Communicating: Listener Thread (" + (packet.getServer()) + ") still in communication with process, last check in: " + c.getLastReceived() + " (" + (System.currentTimeMillis() - c.getLastReceived()) + ") milliseconds");
+							if(c.hasTag(Connection.TAG_SENDER)) {
+								print("\n---Still Communicating: Sender Socket (" + (c) + ") still in communication with process, last check in: " + c.getLastReceived() + " (" + (System.currentTimeMillis() - c.getLastReceived()) + ") milliseconds");
+							}
+							else {
+								print("\n---Still Communicating: Listener Thread (" + (packet.getServer()) + ") still in communication with process, last check in: " + c.getLastReceived() + " (" + (System.currentTimeMillis() - c.getLastReceived()) + ") milliseconds");
+							}
 						}
 						if(c.initiationTimeout(delay)) {
-							print("No Message Received by  (" + (packet.getServer()) + ") in " + delay + " MilliSeconds, Beginning Timeout Counter with Phantom Message Timestamp");
+							if(c.hasTag(Connection.TAG_SENDER)) {
+								print("\n---No Message Received by Sender Socket (" + (c) + ") in " + delay + " MilliSeconds, Beginning Timeout Counter with Phantom Message Timestamp");
+							}
+							else {
+								print("\n---No Message Received by  (" + (packet.getServer()) + ") in " + delay + " MilliSeconds, Beginning Timeout Counter with Phantom Message Timestamp");
+							}
 							c.forceSetLastReceived();
 						}
 					}

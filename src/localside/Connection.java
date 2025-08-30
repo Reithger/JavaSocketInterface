@@ -39,12 +39,18 @@ public class Connection extends KeepAliveThread{
 
 	/** The Sender tag indicates a connection is a result of this program establishing a novel
 	 *  connection to another service*/
-	public final static String TAG_SENDER = MessageSender.TAG_SENDER;
+	public final static String TAG_SENDER = "sender";
 	/** The Client tag indicates a connection is a result of another service connecting to this
 	 * 	program's listening Server.*/
-	public final static String TAG_CLIENT = MessageSender.TAG_CLIENT;
+	public final static String TAG_CLIENT = "client";
 	
 	public final static String TAG_ALL = "ALL";
+	
+	public final static String INDICATE_TAG_REQUEST = "REQUEST TAG";
+	
+	public final static String INDICATE_TAG_SENDING = "TAG LIST";
+	
+	public final static String INDICATE_TAG_SUCCESS = "TAG RECEIVED";
 	
 //---  Instance Variables   -------------------------------------------------------------------
 	
@@ -64,7 +70,24 @@ public class Connection extends KeepAliveThread{
 	
 	private volatile long birthTime;
 	
+	private volatile boolean tagSatisfied;
+	
 //---  Constructors   -------------------------------------------------------------------------
+	
+	/**
+	 * 
+	 * This constructor indicates we are creating a Client who has connected to our listening
+	 * server, as we have a Socket object from Server.accept().
+	 * 
+	 * We tag it as a Client to denote it is someone who has connected to us.
+	 * 
+	 * A Client needs to tell us any relevant tags it has by sending a message prefixed
+	 * with INDICATE_TAG_SENDING to us; we send it an INDICATE_TAG_REQUEST if we have not
+	 * received any tags yet.
+	 * 
+	 * @param inClient
+	 * @param inTitle
+	 */
 	
 	public Connection(Socket inClient, String inTitle) {
 		client = inClient;
@@ -74,6 +97,7 @@ public class Connection extends KeepAliveThread{
 		tags.add(TAG_CLIENT);
 		tags.add(TAG_ALL);
 		messageQueue = new LinkedList<String>();
+		queueMessage(INDICATE_TAG_REQUEST);
 		birthTime = System.currentTimeMillis();
 		try {
 			writer = new BufferedWriter(new OutputStreamWriter(client.getOutputStream(), "UTF-8"));
@@ -85,6 +109,10 @@ public class Connection extends KeepAliveThread{
 	/**
 	 * Alt constructor that takes a port number; this constructor is meant to establish
 	 * a Connection that is being made to an existing Server port as a Client.
+	 * 
+	 * We tag it as a Sender to denote that it will send messages that originate from us to the
+	 * target port address. It should send a message formatted as INDICATE_TAG_SENDING followed
+	 * by a list of its tags when it receives a message of INDICATE_TAG_REQUEST.
 	 * 
 	 * @param targetPort
 	 * @param inTitle
@@ -99,6 +127,7 @@ public class Connection extends KeepAliveThread{
 		tags.add(TAG_SENDER);
 		tags.add(TAG_ALL);
 		messageQueue = new LinkedList<String>();
+		sendTagData();
 		birthTime = System.currentTimeMillis();
 		try {
 			writer = new BufferedWriter(new OutputStreamWriter(client.getOutputStream(), "UTF-8"));
@@ -117,8 +146,23 @@ public class Connection extends KeepAliveThread{
 			BufferedReader receiver = new BufferedReader(new InputStreamReader(client.getInputStream()));
 			String received = receiver.readLine();
 			while(received != null && !received.equals("exit") && getKeepAliveStatus()) {
-				if(!received.equals(""))
-					reference.receiveSocketData(received);
+				if(received.equals(INDICATE_TAG_REQUEST)) {
+					sendTagData();
+				}
+				else if(received.startsWith(INDICATE_TAG_SENDING)) {
+					if(tagSatisfied) {
+						queueMessage(INDICATE_TAG_SUCCESS);
+					}
+					else {
+						processTagData(received);
+					}
+				}
+				else if(received.equals(INDICATE_TAG_SUCCESS)) {
+					tagSatisfied = true;
+				}
+				else if(!received.equals("")) {
+					reference.receiveSocketData(received, tags);
+				}
 				received = receiver.readLine();
 				lastReceived = System.currentTimeMillis();
 			}
@@ -126,6 +170,35 @@ public class Connection extends KeepAliveThread{
 		catch(Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	private void sendTagData() {
+		ArrayList<String> out = new ArrayList<String>();
+		for(String s : tags) {
+			if(!s.equals(Connection.TAG_CLIENT) && !s.equals(Connection.TAG_SENDER)) {
+				out.add(s);
+			}
+		}
+		queueMessage(INDICATE_TAG_SENDING + " " + out.toString());
+	}
+	
+	private void processTagData(String in) {
+		System.out.println(tags);
+		System.out.println(in);
+		String[] parts = in.split(INDICATE_TAG_SENDING);
+		String relevant = parts[1].trim();
+		if(relevant.startsWith("[")) {
+			relevant = relevant.substring(1, relevant.length() - 1);
+		}
+		String[] use = relevant.split(relevant.contains(",") ? ", " : " ");
+		for(String s : use) {
+			if(!tags.contains(s)) {
+				tags.add(s);
+			}
+		}
+		tagSatisfied = true;
+		System.out.println(tags);
+		queueMessage(INDICATE_TAG_SUCCESS);
 	}
 	
 	@Override
@@ -203,7 +276,7 @@ public class Connection extends KeepAliveThread{
 	}
 	
 	public String getIdentity() {
-		return title + ", " + client;
+		return title + ", " + client + ", " + tags;
 	}
 
 	public long getLastReceived() {
@@ -222,6 +295,11 @@ public class Connection extends KeepAliveThread{
 	
 	public void forceSetLastReceived() {
 		lastReceived = System.currentTimeMillis();
+	}
+	
+	@Override
+	public String toString() {
+		return getIdentity();
 	}
 	
 }

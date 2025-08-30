@@ -50,14 +50,20 @@ public class ListenerPacket implements ConnectionsManager {
 //---  Operations   ---------------------------------------------------------------------------
 	
 	public void startServer() {
+		if(listenPort == -1) {
+			print("Main Listening Socket not established due to no port (manual or random) being set");
+			return;
+		}
 		try {
-			server = new ServerSocket(listenPort);
-			print("Server established with: " + server);
+			server = new ServerSocket(listenPort == -2 ? 0 : listenPort);
+			listenPort = server.getLocalPort();
+			print("Main Server established with: " + server);
 		}
 		catch(Exception e) {
-			print("Error in restarting server for listening address: " + listenPort);
+			print("Error in starting server for listening address: " + listenPort);
 			e.printStackTrace();
 		}
+		
 	}
 	
 	public void closeOutSession() {
@@ -92,7 +98,17 @@ public class ListenerPacket implements ConnectionsManager {
 		}
 	}
 	
-	public void sendMessage(String message, String tag) {
+	public void sendMessage(String title, String message) {
+		if(!messageSender.getActiveStatus()) {
+			messageSender.start();
+		}
+		this.getConnection(title).queueMessage(message);
+	}
+	
+	public void distributeMessage(String message, String tag) {
+		if(!messageSender.getActiveStatus()) {
+			messageSender.start();
+		}
 		for(Connection c : clients.values()) {
 			if(c.hasTag(tag)) {
 				c.queueMessage(message);
@@ -100,7 +116,10 @@ public class ListenerPacket implements ConnectionsManager {
 		}
 	}
 	
-	public void sendMessage(String message, ArrayList<String> tag) {
+	public void distributeMessage(String message, ArrayList<String> tag) {
+		if(!messageSender.getActiveStatus()) {
+			messageSender.start();
+		}
 		for(Connection c : clients.values()) {
 			for(String s : tag) {
 				if(c.hasTag(s)) {
@@ -111,10 +130,33 @@ public class ListenerPacket implements ConnectionsManager {
 		}
 	}
 	
+	public void distributeMessage(String message, ArrayList<String> tagInclusive, ArrayList<String> tagExclusive) {
+		if(!messageSender.getActiveStatus()) {
+			messageSender.start();
+		}
+		for(Connection c : clients.values()) {
+			boolean fail = false;
+			for(String s : tagInclusive) {
+				if(!c.hasTag(s)) {
+					fail = true;
+				}
+			}
+			for(String s : tagExclusive) {
+				if(c.hasTag(s)) {
+					fail = true;
+				}
+			}
+			if(!fail) {
+				c.queueMessage(message);;
+			}
+		}
+	}
+	
 	public void assignThreads(KeepAliveThread listen, KeepAliveThread time, KeepAliveThread sendThread) {
 		listener = listen;
 		timeOut = time;
 		messageSender = (SenderThread)sendThread;
+		setQuiet(quiet);
 		if(keepalive != -1) {
 			sendMessage("Handshake Protocol Initated, Sender Thread Spin Up Begun", Connection.TAG_ALL);
 		}
@@ -148,8 +190,6 @@ public class ListenerPacket implements ConnectionsManager {
 	public void addConnection(String title, int clientPort) throws Exception{
 		clients.put(title, new Connection(clientPort, title));
 	}
-	
-
 
 	@Override
 	public void addTag(String title, String tag) {
@@ -159,34 +199,47 @@ public class ListenerPacket implements ConnectionsManager {
 		}
 	}
 	
+	public void setQuiet(boolean shh) {
+		listener.setQuiet(shh);
+		timeOut.setQuiet(shh);
+		messageSender.setQuiet(shh);
+	}
+	
 //---  Getter Methods   -----------------------------------------------------------------------0
 	
 	public ServerSocket getServer() {
 		return server;
 	}
 	
-	public void print(String in) {
-		if(!quiet) {
-			System.out.println(in);
-		}
+	public boolean isServerEstablished() {
+		return server != null;
 	}
 
+	public int getServerPort() {
+		return listenPort;
+	}
 	
 	@Override
 	public HashMap<String, Connection> getConnections() {
 		return clients;
 	}
-	
 
 	@Override
 	public Collection<Connection> getConnectionList() {
 		return clients.values();
 	}
-	
 
 	@Override
 	public Connection getConnection(String title) {
 		return clients.get(title);
+	}
+	
+//---  Support Methods   ----------------------------------------------------------------------
+	
+	public void print(String in) {
+		if(!quiet) {
+			System.out.println(in);
+		}
 	}
 
 

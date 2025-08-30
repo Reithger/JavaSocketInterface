@@ -22,6 +22,8 @@ public class SenderThread extends KeepAliveThread{
 	
 	private ConnectionsManager connections;
 	
+	private boolean active;
+	
 //---  Constructors   -------------------------------------------------------------------------
 
 	public SenderThread(int keepAliveTimer, ConnectionsManager inCon) {
@@ -34,6 +36,7 @@ public class SenderThread extends KeepAliveThread{
 	@Override
 	public void run() {
 		try {
+			active = true;
 			processMessageQueue();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -43,6 +46,7 @@ public class SenderThread extends KeepAliveThread{
 	
 	private void processMessageQueue() {
 		while(getKeepAliveStatus()) {
+			print("---Sender Thread Activated");
 			boolean bailOnSending = false;
 			while(messagesLeft() && !bailOnSending) {
 				try {
@@ -92,5 +96,8 @@ public class SenderThread extends KeepAliveThread{
 	
 //--- Getter Methods   ------------------------------------------------------------------------
 
+	public boolean getActiveStatus() {
+		return active;
+	}
 	
 }

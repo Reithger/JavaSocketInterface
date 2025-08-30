@@ -47,11 +47,14 @@ q = queue.Queue()
 port = sys.argv[1]
 sender = None
 
+counter = 0
+
 def connect():
     global sender
     sender = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sender.connect(("127.0.0.1", int(port)))
-    sender.send("Connection Established".encode("utf-8"))
+    sender.send("\nTAG LIST VTT\n".encode("utf-8"))
+    sender.send("\nConnection Established\n".encode("utf-8"))
 
 def callback(indata, frames, time, status):
     """This is called (from a separate thread) for each audio block."""

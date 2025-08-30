@@ -31,6 +31,11 @@ import subprogram.SubprogramFileValidation;
  * 
  * Also allow running subprograms without an attached listener for versatility.
  * 
+ * 
+ * TODO: Need to consider handshake messages that communicate the client's identity/any tags they want to be labeled with
+ * 
+ * 
+ * 
  */
 
 public class SocketControl {
@@ -56,12 +61,19 @@ public class SocketControl {
 		socketInstances.put(label, new JavaSocket());
 	}
 	
-	public void runSocketInstance(String label) {
-		socketInstances.get(label).setUpListening();
+	/**
+	 * 
+	 * 
+	 * @param label
+	 * @throws Exception - Exception if no JavaReceiver in place to receive data from sockets
+	 */
+	
+	public void runSocketInstance(String label) throws Exception{
+		socketInstances.get(label).activate();
 	}
 	
 	public void endSocketInstance(String label) {
-		socketInstances.get(label).closeListening();
+		socketInstances.get(label).deactivate();
 	}
 	
 	public void removeSocketInstance(String label) {
@@ -120,8 +132,20 @@ public class SocketControl {
 		socketInstances.get(label).setListenPort(port);
 	}
 	
+	public void setInstanceListenPortRandom(String label) {
+		socketInstances.get(label).setListenPortRandom();
+	}
+	
 	public void addInstanceSendPort(String label, String title, int port) throws Exception{
 		socketInstances.get(label).addSendPort(port, title);
+	}
+	
+	public void addInstanceSendPortTag(String label, String title, String tag) {
+		socketInstances.get(label).addSenderTag(title, tag);
+	}
+	
+	public void activateInstanceSendPort(String label, String title) {
+		socketInstances.get(label).activateSendPort(title);
 	}
 	
 	public void setInstanceTimeout(String label, int timeout) {
@@ -152,5 +176,10 @@ public class SocketControl {
 		socketInstances.get(label).setSubprogram(SubProgramGenerator.getPythonSubProgram(programPath, arguments));
 	}
 	
+//---  Getter Methods   -----------------------------------------------------------------------
+	
+	public int getInstanceListenPort(String label) {
+		return socketInstances.get(label).getCurrentListenPortNumber();
+	}
 	
 }

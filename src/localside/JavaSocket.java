@@ -39,7 +39,7 @@ public class JavaSocket implements MessageSender {
 	
 //---  Constants   ----------------------------------------------------------------------------
 	
-	private final static int START_PORT = 5439;
+	private final static int START_PORT = -1;
 	
 	private final static int TIMEOUT_PERIOD = 5000;
 	
@@ -53,6 +53,7 @@ public class JavaSocket implements MessageSender {
 	
 	private JavaReceiver passTo;
 	private SubProgram subProgram;
+	
 	private int currentListenPort;
 	
 	/** int value used to denote how long to wait for a message from the listened-to port before resetting the connection;
@@ -112,33 +113,31 @@ public class JavaSocket implements MessageSender {
 
 //---  Operations   ---------------------------------------------------------------------------
 	
-	/**
-	 * This function is called automatically by lower-level classes in this package and should
-	 * not be called directly by a programmer using this package.
-	 * 
-	 * This effectively restarts the current listening session and iterates the port number forward,
-	 * so if you did need to reset the listening manually, you could call this.
-	 * 
-	 */
-	
-	public void setUpListening() {
+	public void activate() throws Exception{
+		print("Activating Java Socket Interface:");
+		if(passTo == null) {
+			throw new Exception("No receiver for data received via socket communication assigned, terminating");
+		}
+		if(currentListenPort != -1) {
+			print("\n---Starting listener socket on port: " + (currentListenPort != -2 ? currentListenPort : "auto-selected"));
+		}
+		startLocalListener(passTo);
+		if(currentListenPort != -1 && subProgram != null) {
+			print("\n---Establishing subprogram: " + subProgram.getContext() + " that will connect to port " + currentListenPort);
+			subProgram.initiateSubprogram("" + currentListenPort, quiet);
+		}
+	}
+
+	public void deactivate() {
 		if(packet != null) {
 			packet.closeOutSession();
-			if(terminate != null) {
-				terminate.teardownProgram();
-				return;
-			}
 		}
-		print("Initiating Listening Process on Listen Port: " + currentListenPort);
-		startLocalListener(passTo);
-		if(subProgram != null)
-			subProgram.initiateSubprogram("" + currentListenPort, quiet);
 	}
-	
+
 	@Override
-	public void sendMessage(String message, String tag) throws Exception {
+	public void sendMessage(String title, String message) throws Exception {
 		if(packet != null) {
-			packet.sendMessage(message, tag);
+			packet.sendMessage(title, message);
 		}
 		else {
 			throw new Exception("Message Sending Capabilities Not Ready Yet, Please Try Again");
@@ -146,9 +145,29 @@ public class JavaSocket implements MessageSender {
 	}
 	
 	@Override
-	public void sendMessage(String message, ArrayList<String> tag) throws Exception {
+	public void distributeMessage(String message, String tag) throws Exception {
 		if(packet != null) {
-			packet.sendMessage(message, tag);
+			packet.distributeMessage(message, tag);
+		}
+		else {
+			throw new Exception("Message Sending Capabilities Not Ready Yet, Please Try Again");
+		}
+	}
+	
+	@Override
+	public void distributeMessage(String message, ArrayList<String> tag) throws Exception {
+		if(packet != null) {
+			packet.distributeMessage(message, tag);
+		}
+		else {
+			throw new Exception("Message Sending Capabilities Not Ready Yet, Please Try Again");
+		}
+	}
+	
+	@Override
+	public void distributeMessage(String message, ArrayList<String> tagInclusive, ArrayList<String> tagExclusive) throws Exception {
+		if(packet != null) {
+			packet.distributeMessage(message, tagInclusive, tagExclusive);
 		}
 		else {
 			throw new Exception("Message Sending Capabilities Not Ready Yet, Please Try Again");
@@ -157,6 +176,11 @@ public class JavaSocket implements MessageSender {
 	
 	private void startLocalListener(JavaReceiver reference){
 		packet = new ListenerPacket(currentListenPort, keepalive, quiet);
+		packet.startServer();
+		
+		if(packet.getServerPort() != -1) {
+			currentListenPort = packet.getServerPort();
+		}
 		
 		KeepAliveThread listen = ThreadGenerator.generateListeningThread(packet, reference, packet);
 		
@@ -174,18 +198,6 @@ public class JavaSocket implements MessageSender {
 		}
 		
 	}
-	
-	/**
-	 * Interrupts and ends the active Threads to stop the communication between the Java and
-	 * Python sockets.
-	 * 
-	 */
-	
-	public void closeListening() {
-		if(packet != null) {
-			packet.closeOutSession();
-		}
-	}
 
 	public void assignTearDown(JavaTeardown tear) {
 		terminate = tear;
@@ -197,8 +209,44 @@ public class JavaSocket implements MessageSender {
 		currentListenPort = in >= 2000 && in <= 9999 ? in : START_PORT;
 	}
 	
+	public void setListenPortRandom() {
+		currentListenPort = -2;
+	}
+	
 	public void addSendPort(int in, String title) throws Exception {
-		packet.addConnection(title, in);
+		if(packet == null) {
+			print("Socket instance: " + title + " not started yet");
+			return;
+		}
+		int counter = 0;
+		while(counter < connectionAttempts) {
+			print("Establishing Sender Connection to port: " + in + " on connection attempt " + (counter + 1));
+			try {
+				packet.addConnection(title, in);
+				if(packet.isServerEstablished()) {
+					packet.startConnection(title);
+				}
+				packet.getConnection(title).setReceiver(passTo);
+				print("Sender Connection established to port: " + in);
+				return;
+			}
+			catch(Exception e) {
+				counter++;
+			}
+		}
+		throw new Exception("Failure to establish Sender Connection on port: " + in + " after " + connectionAttempts + " attempts");
+	}
+	
+	public void addSenderTag(String title, String tag){
+		if(packet == null) {
+			print("Socket instance: " + title + " not started yet");
+			return;
+		}
+		packet.addTag(title, tag);
+	}
+	
+	public void activateSendPort(String title) {
+		packet.startConnection(title);
 	}
 	
 	public void setTimeout(int in) {
@@ -227,7 +275,9 @@ public class JavaSocket implements MessageSender {
 	
 	public void setQuiet(boolean shh) {
 		quiet = shh;
-		KeepAliveThread.setQuiet(shh);
+		if(packet != null) {
+			packet.setQuiet(shh);
+		}
 	}
 	
 //---  Getter Methods   -----------------------------------------------------------------------
