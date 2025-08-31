@@ -41,7 +41,7 @@ public class test {
 		
 		socket.setInstanceListenPortRandom("captions");
 		
-		socket.verifySubprogramReady("./distdac/", "StylizedCaptions.jar", "../assets/StylizedCaptions.jar", "/control/assets/StylizedCaptions.jar");		
+		socket.verifySubprogramReady("./distdac/", "StylizedCaptions.jar", "../test/assets/StylizedCaptions.jar", "/test/assets/StylizedCaptions.jar");		
 		socket.setInstanceSubprogramJava("captions", "./distdac/StylizedCaptions.jar");
 		
 		reader r = new reader();
@@ -103,7 +103,7 @@ public class test {
 	private static void setupCaptionsInterpreter(SocketControl socket) {
 		socket.createSocketInstance("text");
 		
-		socket.verifySubprogramReady("./captions", "voice-to-text.py", "../assets/voice-to-text.py", "/control/assets/voice-to-text.py");
+		socket.verifySubprogramReady("./captions", "voice-to-text.py", "../test/assets/voice-to-text.py", "/test/assets/voice-to-text.py");
 		
 		socket.setInstanceListenPortRandom("text");
 
