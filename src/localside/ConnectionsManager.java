@@ -1,14 +1,18 @@
 package localside;
 
 import java.net.Socket;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public interface ConnectionsManager {
 
 	public abstract HashMap<String, Connection> getConnections();
 	
-	public abstract Collection<Connection> getConnectionList();
+	public abstract void reserveConnectionList();
+	
+	public abstract void releaseConnectionList();
+	
+	public abstract ArrayList<Connection> getConnectionList();
 	
 	public abstract Connection getConnection(String title);
 	

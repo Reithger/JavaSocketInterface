@@ -3,7 +3,6 @@ package localside;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 
 import localside.listen.KeepAliveThread;
@@ -89,8 +88,15 @@ public class ListenerPacket implements ConnectionsManager {
 			e.printStackTrace();
 		}
 		try {
-			for(Connection c : clients.values()) {
-				this.terminateConnection(c.getTitle());
+			ArrayList<String> titles = new ArrayList<String>();
+			reserveConnectionList();
+			for(int i = 0; i < getConnectionList().size(); i++) {
+				Connection c = getConnectionList().get(i);
+				titles.add(c.getTitle());
+			}
+			releaseConnectionList();
+			for(String s : titles) {
+				terminateConnection(s);
 			}
 		}
 		catch(Exception e) {
@@ -109,42 +115,45 @@ public class ListenerPacket implements ConnectionsManager {
 		if(!messageSender.getActiveStatus()) {
 			messageSender.start();
 		}
-		for(Connection c : clients.values()) {
+		reserveConnectionList();
+		for(Connection c : getConnectionList()) {
 			if(c.hasTag(tag)) {
 				try {
 					messageSender.queueMessage(c.getTitle(), message);
 				}
 				catch(Exception e) {
-					
 				}
 			}
 		}
+		releaseConnectionList();
 	}
 	
 	public void distributeMessage(String message, ArrayList<String> tag) {
 		if(!messageSender.getActiveStatus()) {
 			messageSender.start();
 		}
-		for(Connection c : clients.values()) {
+		reserveConnectionList();
+		for(Connection c : getConnectionList()) {
 			for(String s : tag) {
 				if(c.hasTag(s)) {
 					try {
 						messageSender.queueMessage(c.getTitle(), message);
 					}
 					catch(Exception e) {
-						
 					}
 					break;
 				}
 			}
 		}
+		releaseConnectionList();
 	}
 	
 	public void distributeMessage(String message, ArrayList<String> tagInclusive, ArrayList<String> tagExclusive) {
 		if(!messageSender.getActiveStatus()) {
 			messageSender.start();
 		}
-		for(Connection c : clients.values()) {
+		reserveConnectionList();
+		for(Connection c : getConnectionList()) {
 			boolean fail = false;
 			for(String s : tagInclusive) {
 				if(!c.hasTag(s)) {
@@ -165,6 +174,7 @@ public class ListenerPacket implements ConnectionsManager {
 				}
 			}
 		}
+		releaseConnectionList();
 	}
 	
 	public void assignThreads(KeepAliveThread listen, KeepAliveThread time, KeepAliveThread sendThread) {
@@ -194,7 +204,9 @@ public class ListenerPacket implements ConnectionsManager {
 	public void terminateConnection(String title) {
 		Connection c = getConnection(title);
 		if(c != null) {
+			reserveConnectionList();
 			clients.remove(c.getTitle());
+			releaseConnectionList();
 			c.end();
 			c.interrupt();
 		}
@@ -205,14 +217,18 @@ public class ListenerPacket implements ConnectionsManager {
 	public void addConnection(String title, Socket client) {
 		Connection c = new Connection(client, title);
 		c.setQuiet(quiet);
+		reserveConnectionList();
 		clients.put(title, c);
+		releaseConnectionList();
 	}
 
 	@Override
 	public void addConnection(String title, int clientPort) throws Exception{
 		Connection c = new Connection(clientPort, title);
 		c.setQuiet(quiet);
+		reserveConnectionList();
 		clients.put(title, c);
+		releaseConnectionList();
 	}
 
 	@Override
@@ -248,14 +264,30 @@ public class ListenerPacket implements ConnectionsManager {
 		return clients;
 	}
 
+	private volatile boolean mutex;
+	
 	@Override
-	public Collection<Connection> getConnectionList() {
-		return clients.values();
+	public void reserveConnectionList() {
+		while(mutex) {		}
+		mutex = true;
+	}
+	
+	@Override
+	public void releaseConnectionList() {
+		mutex = false;
+	}
+	
+	@Override
+	public ArrayList<Connection> getConnectionList() {
+		return new ArrayList<Connection>(clients.values());
 	}
 
 	@Override
 	public Connection getConnection(String title) {
-		return clients.get(title);
+		reserveConnectionList();
+		Connection c = clients.get(title);
+		releaseConnectionList();
+		return c;
 	}
 	
 //---  Support Methods   ----------------------------------------------------------------------

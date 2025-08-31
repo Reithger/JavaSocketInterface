@@ -48,7 +48,9 @@ public class SenderThread extends KeepAliveThread{
 		while(getKeepAliveStatus()) {
 			print("\n---Sender Thread Activated");
 			while(messagesLeft()) {
-				for(Connection c : connections.getConnectionList()) {
+				connections.reserveConnectionList();
+				for(int i = 0; i < connections.getConnectionList().size(); i++) {
+					Connection c = connections.getConnectionList().get(i);
 					boolean bailOnSending = false;
 					while(c.hasMessage() && !bailOnSending) {
 						try {
@@ -60,13 +62,17 @@ public class SenderThread extends KeepAliveThread{
 						}
 					}
 				}
+				connections.releaseConnectionList();
 			}
 			try {
 				if(keepAlive != -1) {
-					for(Connection c : connections.getConnectionList()) {
+					connections.reserveConnectionList();
+					for(int i = 0; i < connections.getConnectionList().size(); i++) {
+						Connection c = connections.getConnectionList().get(i);
 						c.queueMessage("Keepalive message to " + (c.hasTag(Connection.TAG_SENDER) ? c.getIdentity() : c.getTitle()));
 						print("Queued Keepalive for " + c);
 					}
+					connections.releaseConnectionList();
 				}
 				Thread.sleep(keepAlive == -1 ? 10000 : keepAlive);
 			} catch (InterruptedException e) {
@@ -76,11 +82,15 @@ public class SenderThread extends KeepAliveThread{
 	}
 	
 	private boolean messagesLeft() {
-		for(Connection c : connections.getConnectionList()) {
+		connections.reserveConnectionList();
+		for(int i = 0; i < connections.getConnectionList().size(); i++) {
+			Connection c = connections.getConnectionList().get(i);
 			if(c.hasMessage()) {
+				connections.releaseConnectionList();
 				return true;
 			}
 		}
+		connections.releaseConnectionList();
 		return false;
 	}
 

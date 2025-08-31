@@ -1,5 +1,7 @@
 package localside.listen;
 
+import java.util.ArrayList;
+
 import localside.Connection;
 import localside.ListenerPacket;
 
@@ -47,14 +49,16 @@ public class TimeOutThread extends KeepAliveThread{
 	@Override
 	public void run() {
 		while(getKeepAliveStatus()) {
+			ArrayList<String> removeList = new ArrayList<String>();
 			try {
 				Thread.sleep(checkRate);
 				print("\n--- --- KeepAlive Checks on all Connections, Timeout : " + timeoutPeriod + " ms --- ---");
+				packet.reserveConnectionList();
 				for(Connection c : packet.getConnectionList()) {
 					print("\n--- KeepAlive Check on Connection: " + c);
 					if(!c.checkTimedOut(timeoutPeriod)) {
 						print("!!!Ending Connection!!! Connection Thread (" + (c.getIdentity()) + ") timed out on communication");
-						packet.terminateConnection(c.getTitle());
+						removeList.add(c.getTitle());
 						continue;
 					}
 					else {
@@ -86,8 +90,16 @@ public class TimeOutThread extends KeepAliveThread{
 						}
 					}
 				}
+				packet.releaseConnectionList();
+				for(String s : removeList) {
+					packet.terminateConnection(s);
+				}
 				
 			} catch (Exception e) {
+				packet.releaseConnectionList();
+				for(String s : removeList) {
+					packet.terminateConnection(s);
+				}
 				e.printStackTrace();
 			}
 		}
