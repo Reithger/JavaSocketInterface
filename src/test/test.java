@@ -59,6 +59,7 @@ public class test {
 	}
 	
 	private static void setupSender(SocketControl socket, int port) {
+		System.out.println("Check: " + port);
 		socket.createSocketInstance("sending");
 		
 		socket.attachJavaReceiver("sending", new reader(false));
@@ -66,6 +67,8 @@ public class test {
 		sender s = new sender();
 		
 		socket.attachJavaSender("sending", s);
+		
+		socket.setInstanceKeepAlive("sending", 2000);
 		
 		socket.setInstanceQuiet("sending", true);
 		
@@ -89,7 +92,7 @@ public class test {
 		while(true) {
 			s.sendMessage("Hello!");
 			try {
-				Thread.sleep(200);
+				Thread.sleep(1000);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -108,7 +111,9 @@ public class test {
 		
 		socket.setInstanceSubprogramPython("text", "./captions/voice-to-text.py");
 		
-		//socket.setInstanceQuiet("text", true);
+		socket.setInstanceKeepAlive("text", 2000);
+		
+		socket.setInstanceQuiet("text", true);
 
 		try {
 			socket.runSocketInstance("text");
@@ -159,7 +164,7 @@ class reader implements JavaReceiver{
 			if(tags.contains("VTT")) {
 				if(socketData.contains("partial") || socketData.contains("text")) {
 					socketData = cleanInput(socketData);
-					System.out.println("Tags: " + tags.toString());
+					//System.out.println("Tags: " + tags.toString());
 					System.out.println("Host received message: " + socketData);
 				}
 			}
@@ -168,7 +173,7 @@ class reader implements JavaReceiver{
 			}
 		}
 		else {
-			System.out.println("Host received message: " + socketData);
+			System.out.println("~~~Sender received message: " + socketData);
 		}
 	}
 	

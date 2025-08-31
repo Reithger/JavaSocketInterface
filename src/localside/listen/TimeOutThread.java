@@ -49,35 +49,38 @@ public class TimeOutThread extends KeepAliveThread{
 		while(getKeepAliveStatus()) {
 			try {
 				Thread.sleep(checkRate);
+				print("\n--- --- KeepAlive Checks on all Connections, Timeout : " + timeoutPeriod + " ms --- ---");
 				for(Connection c : packet.getConnectionList()) {
+					print("\n--- KeepAlive Check on Connection: " + c);
 					if(!c.checkTimedOut(timeoutPeriod)) {
 						print("!!!Ending Connection!!! Connection Thread (" + (c.getIdentity()) + ") timed out on communication");
 						packet.terminateConnection(c.getTitle());
-						break;
+						continue;
 					}
 					else {
-						if(c.checkInitiated()) {
+						if(!c.checkInitiated()) {
 							if(c.hasTag(Connection.TAG_SENDER)) {
-								print("\n---Initial Communication Not Received: Sender Socket (" + (c) + ") has not received initial communication with process yet");
+								print("\nInitial Communication Not Received: Sender Socket (" + (c) + ") has not received initial communication with process yet");
 							}
 							else {
-								print("\n---Initial Communication Not Received: Listener Thread (" + (packet.getServer()) + ") has not received initial communication with process yet");
+								print("\nInitial Communication Not Received: Listener Thread (" + (packet.getServer()) + ") has not received initial communication with client " + c + " yet");
 							}
 						}
 						else {
 							if(c.hasTag(Connection.TAG_SENDER)) {
-								print("\n---Still Communicating: Sender Socket (" + (c) + ") still in communication with process, last check in: " + c.getLastReceived() + " (" + (System.currentTimeMillis() - c.getLastReceived()) + ") milliseconds");
+								print("\nStill Communicating: Sender Socket (" + (c) + ") still in communication with process, last check in: " + c.getLastReceived() + " (" + (System.currentTimeMillis() - c.getLastReceived()) + ") milliseconds");
 							}
 							else {
-								print("\n---Still Communicating: Listener Thread (" + (packet.getServer()) + ") still in communication with process, last check in: " + c.getLastReceived() + " (" + (System.currentTimeMillis() - c.getLastReceived()) + ") milliseconds");
+								print("\nStill Communicating: Listener Thread (" + (packet.getServer()) + ") still in communication with client " + c + ", last check in: " + c.getLastReceived() + " (" + (System.currentTimeMillis() - c.getLastReceived()) + ") milliseconds");
+								
 							}
 						}
 						if(c.initiationTimeout(delay)) {
 							if(c.hasTag(Connection.TAG_SENDER)) {
-								print("\n---No Message Received by Sender Socket (" + (c) + ") in " + delay + " MilliSeconds, Beginning Timeout Counter with Phantom Message Timestamp");
+								print("\nNo Message Received by Sender Socket (" + (c) + ") in " + delay + " MilliSeconds, Beginning Timeout Counter with Phantom Message Timestamp");
 							}
 							else {
-								print("\n---No Message Received by  (" + (packet.getServer()) + ") in " + delay + " MilliSeconds, Beginning Timeout Counter with Phantom Message Timestamp");
+								print("\nNo Message Received by  (" + (packet.getServer()) + ") from " + c + " in " + delay + " MilliSeconds, Beginning Timeout Counter with Phantom Message Timestamp");
 							}
 							c.forceSetLastReceived();
 						}

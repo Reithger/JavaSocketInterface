@@ -114,7 +114,7 @@ public class JavaSocket implements MessageSender {
 //---  Operations   ---------------------------------------------------------------------------
 	
 	public void activate() throws Exception{
-		print("Activating Java Socket Interface:");
+		print("\nActivating Java Socket Interface:");
 		if(passTo == null) {
 			throw new Exception("No receiver for data received via socket communication assigned, terminating");
 		}
@@ -219,15 +219,14 @@ public class JavaSocket implements MessageSender {
 			return;
 		}
 		int counter = 0;
+		print("\nEstablishing Sender Connection to port: " + in);
 		while(counter < connectionAttempts) {
-			print("Establishing Sender Connection to port: " + in + " on connection attempt " + (counter + 1));
+			print("\n---Attempt to establish sender to port: " + in + " on connection attempt " + (counter + 1));
 			try {
 				packet.addConnection(title, in);
-				if(packet.isServerEstablished()) {
-					packet.startConnection(title);
-				}
 				packet.getConnection(title).setReceiver(passTo);
-				print("Sender Connection established to port: " + in);
+				packet.startConnection(title);
+				print("\n---Sender Connection established to port: " + in);
 				return;
 			}
 			catch(Exception e) {

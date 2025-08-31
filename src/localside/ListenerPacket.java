@@ -98,11 +98,11 @@ public class ListenerPacket implements ConnectionsManager {
 		}
 	}
 	
-	public void sendMessage(String title, String message) {
+	public void sendMessage(String title, String message) throws Exception{
 		if(!messageSender.getActiveStatus()) {
 			messageSender.start();
 		}
-		this.getConnection(title).queueMessage(message);
+		messageSender.queueMessage(title, message);
 	}
 	
 	public void distributeMessage(String message, String tag) {
@@ -111,7 +111,12 @@ public class ListenerPacket implements ConnectionsManager {
 		}
 		for(Connection c : clients.values()) {
 			if(c.hasTag(tag)) {
-				c.queueMessage(message);
+				try {
+					messageSender.queueMessage(c.getTitle(), message);
+				}
+				catch(Exception e) {
+					
+				}
 			}
 		}
 	}
@@ -123,7 +128,12 @@ public class ListenerPacket implements ConnectionsManager {
 		for(Connection c : clients.values()) {
 			for(String s : tag) {
 				if(c.hasTag(s)) {
-					c.queueMessage(message);
+					try {
+						messageSender.queueMessage(c.getTitle(), message);
+					}
+					catch(Exception e) {
+						
+					}
 					break;
 				}
 			}
@@ -147,7 +157,12 @@ public class ListenerPacket implements ConnectionsManager {
 				}
 			}
 			if(!fail) {
-				c.queueMessage(message);;
+				try {
+					messageSender.queueMessage(c.getTitle(), message);
+				}
+				catch(Exception e) {
+					
+				}
 			}
 		}
 	}
@@ -158,7 +173,7 @@ public class ListenerPacket implements ConnectionsManager {
 		messageSender = (SenderThread)sendThread;
 		setQuiet(quiet);
 		if(keepalive != -1) {
-			sendMessage("Handshake Protocol Initated, Sender Thread Spin Up Begun", Connection.TAG_ALL);
+			distributeMessage("Handshake Protocol Initated, Sender Thread Spin Up Begun", Connection.TAG_ALL);
 		}
 	}
 	
@@ -167,6 +182,10 @@ public class ListenerPacket implements ConnectionsManager {
 		Connection c = getConnection(title);
 		if(c != null) {
 			c.start();
+			print("\n---Connection '" + title + "' listener thread started");
+		}
+		else {
+			print("\n---Failed to start Connection, wrong title: " + title);
 		}
 	}
 	
@@ -175,6 +194,7 @@ public class ListenerPacket implements ConnectionsManager {
 	public void terminateConnection(String title) {
 		Connection c = getConnection(title);
 		if(c != null) {
+			clients.remove(c.getTitle());
 			c.end();
 			c.interrupt();
 		}
@@ -183,12 +203,16 @@ public class ListenerPacket implements ConnectionsManager {
 
 	@Override
 	public void addConnection(String title, Socket client) {
-		clients.put(title, new Connection(client, title));
+		Connection c = new Connection(client, title);
+		c.setQuiet(quiet);
+		clients.put(title, c);
 	}
 
 	@Override
 	public void addConnection(String title, int clientPort) throws Exception{
-		clients.put(title, new Connection(clientPort, title));
+		Connection c = new Connection(clientPort, title);
+		c.setQuiet(quiet);
+		clients.put(title, c);
 	}
 
 	@Override

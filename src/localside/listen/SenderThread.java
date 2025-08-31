@@ -46,28 +46,29 @@ public class SenderThread extends KeepAliveThread{
 	
 	private void processMessageQueue() {
 		while(getKeepAliveStatus()) {
-			print("---Sender Thread Activated");
-			boolean bailOnSending = false;
-			while(messagesLeft() && !bailOnSending) {
-				try {
-					for(Connection c : connections.getConnectionList()) {
-						while(c.hasMessage()) {
+			print("\n---Sender Thread Activated");
+			while(messagesLeft()) {
+				for(Connection c : connections.getConnectionList()) {
+					boolean bailOnSending = false;
+					while(c.hasMessage() && !bailOnSending) {
+						try {
 							c.sendViableMessage();
+						}
+						catch(Exception e) {
+							bailOnSending = true;
+							c.establishWriter();
 						}
 					}
 				}
-				catch(Exception e) {
-					e.printStackTrace();
-					bailOnSending = true;
-				}
 			}
 			try {
-				Thread.sleep(keepAlive == -1 ? 10000 : keepAlive);
 				if(keepAlive != -1) {
 					for(Connection c : connections.getConnectionList()) {
-						c.queueMessage("Keepalive message from " + c.getIdentity());
+						c.queueMessage("Keepalive message to " + (c.hasTag(Connection.TAG_SENDER) ? c.getIdentity() : c.getTitle()));
+						print("Queued Keepalive for " + c);
 					}
 				}
+				Thread.sleep(keepAlive == -1 ? 10000 : keepAlive);
 			} catch (InterruptedException e) {
 				//e.printStackTrace();
 			}

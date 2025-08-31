@@ -90,6 +90,7 @@ public class Connection extends KeepAliveThread{
 	 */
 	
 	public Connection(Socket inClient, String inTitle) {
+		print("\nEstablishing new Server Side Connection as Client: " + inClient);
 		client = inClient;
 		title = inTitle;
 		lastReceived = 0L;
@@ -99,11 +100,7 @@ public class Connection extends KeepAliveThread{
 		messageQueue = new LinkedList<String>();
 		queueMessage(INDICATE_TAG_REQUEST);
 		birthTime = System.currentTimeMillis();
-		try {
-			writer = new BufferedWriter(new OutputStreamWriter(client.getOutputStream(), "UTF-8"));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		establishWriter();
 	}
 	
 	/**
@@ -120,6 +117,7 @@ public class Connection extends KeepAliveThread{
 	 */
 	
 	public Connection(int targetPort, String inTitle) throws Exception{
+		print("\nEstablishing new Sender Connection to Port: " + targetPort);
 		client = new Socket("127.0.0.1", targetPort);
 		title = inTitle;
 		lastReceived = 0L;
@@ -129,8 +127,18 @@ public class Connection extends KeepAliveThread{
 		messageQueue = new LinkedList<String>();
 		sendTagData();
 		birthTime = System.currentTimeMillis();
+		establishWriter();
+	}
+	
+	public void establishWriter() {
 		try {
-			writer = new BufferedWriter(new OutputStreamWriter(client.getOutputStream(), "UTF-8"));
+			if(writer != null) {
+				writer.close();
+			}
+			if(client != null && !client.isClosed()) {
+				print("\n---Establishing Writer for Connection: " + this);
+				writer = new BufferedWriter(new OutputStreamWriter(client.getOutputStream(), "UTF-8"));
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -144,24 +152,25 @@ public class Connection extends KeepAliveThread{
 	public void run() {
 		try {
 			BufferedReader receiver = new BufferedReader(new InputStreamReader(client.getInputStream()));
+			print("\n---!!!---New Connection Started With Identity: " + getIdentity());
 			String received = receiver.readLine();
 			while(received != null && !received.equals("exit") && getKeepAliveStatus()) {
+				//print("\n---" + getIdentity() + " received: '" + received + "'");
 				if(received.equals(INDICATE_TAG_REQUEST)) {
 					sendTagData();
 				}
 				else if(received.startsWith(INDICATE_TAG_SENDING)) {
-					if(tagSatisfied) {
-						queueMessage(INDICATE_TAG_SUCCESS);
-					}
-					else {
-						processTagData(received);
-					}
+					processTagData(received);
+					queueMessage(INDICATE_TAG_SUCCESS);
 				}
 				else if(received.equals(INDICATE_TAG_SUCCESS)) {
 					tagSatisfied = true;
 				}
 				else if(!received.equals("")) {
 					reference.receiveSocketData(received, tags);
+				}
+				if(!tagSatisfied) {
+					queueMessage(INDICATE_TAG_REQUEST);
 				}
 				received = receiver.readLine();
 				lastReceived = System.currentTimeMillis();
@@ -180,11 +189,10 @@ public class Connection extends KeepAliveThread{
 			}
 		}
 		queueMessage(INDICATE_TAG_SENDING + " " + out.toString());
+		print("Connection " + this + " queueing message to send Tag data: " + out.toString());
 	}
 	
 	private void processTagData(String in) {
-		System.out.println(tags);
-		System.out.println(in);
 		String[] parts = in.split(INDICATE_TAG_SENDING);
 		String relevant = parts[1].trim();
 		if(relevant.startsWith("[")) {
@@ -197,7 +205,6 @@ public class Connection extends KeepAliveThread{
 			}
 		}
 		tagSatisfied = true;
-		System.out.println(tags);
 		queueMessage(INDICATE_TAG_SUCCESS);
 	}
 	
@@ -214,7 +221,7 @@ public class Connection extends KeepAliveThread{
 	}
 
 	public boolean checkInitiated() {
-		return lastReceived == 0L;
+		return lastReceived != 0L;
 	}
 	
 	public boolean initiationTimeout(long connectionDelayLimit) {
@@ -242,11 +249,13 @@ public class Connection extends KeepAliveThread{
 	}
 	
 	public void queueMessage(String in) {
+		print("\nMessage queued: " + in + " via Connection Client " + this.getSocket().getLocalPort());
 		messageQueue.add(in);
 	}
 	
 	public void addTag(String in) {
 		tags.add(in);
+		sendTagData();
 	}
 	
 	
