@@ -1,18 +1,21 @@
 package core;
 
+import java.util.ArrayList;
+
 public interface JavaReceiver {
 
 	/**
 	 * 
 	 * In your own program that uses this library, you want a class to implement this and be passed to
-	 * an instance of JavaPythonSocket so that it can periodically receive String data from the associated
-	 * Python program that is running and sending data over.
+	 * an instance of JavaSocketInterface so that it can periodically receive String data from the associated
+	 * sockets that are sending data over.
 	 * 
-	 * This will be customized to provide more methods of interaction than one-way receiving of data.
+	 * It provides the sent data and the tags associated to that Connection for managing incoming data sources.
 	 * 
-	 * @param pythonData
+	 * @param socketData - String object representing the data sent by a Connection socket
+	 * @param tags - ArrayList of String objects representing label tags associated to the Connection that sent this data
 	 */
 	
-	public abstract void receiveSocketData(String socketData);
+	public abstract void receiveSocketData(String socketData, ArrayList<String> tags);
 	
 }

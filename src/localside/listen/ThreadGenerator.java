@@ -1,21 +1,21 @@
 package localside.listen;
 
 import core.JavaReceiver;
-import localside.InitiateListening;
+import localside.ConnectionsManager;
 import localside.ListenerPacket;
 
 public class ThreadGenerator {
 
-	public static KeepAliveThread generateListeningThread(ListenerPacket packet, JavaReceiver receiver) {
-		return new ListeningThread(packet, receiver);
+	public static KeepAliveThread generateListeningThread(ListenerPacket packet, JavaReceiver receiver, ConnectionsManager conMan) {
+		return new ListeningThread(packet, receiver, conMan);
 	}
 	
-	public static KeepAliveThread generateTimeOutThread(ListenerPacket packet, InitiateListening restart, int checkRate, int timeout, int timingDelay, String context) {
-		return new TimeOutThread(packet, restart, checkRate, timeout, timingDelay, context);
+	public static KeepAliveThread generateTimeOutThread(ListenerPacket packet, int checkRate, int timeout, int timingDelay) {
+		return new TimeOutThread(packet, checkRate, timeout, timingDelay);
 	}
 	
-	public static KeepAliveThread generateSenderThread(int targetPort, int keepAliveTime, int connectionAttempts) {
-		return new SenderThread(targetPort, keepAliveTime, connectionAttempts);
+	public static KeepAliveThread generateSenderThread(ConnectionsManager conMan, int keepAliveTime) {
+		return new SenderThread(keepAliveTime, conMan);
 	}
 
 }

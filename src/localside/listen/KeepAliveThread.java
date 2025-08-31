@@ -4,7 +4,7 @@ public abstract class KeepAliveThread extends Thread {
 
 	private volatile boolean keepAliveStatus;
 	
-	private static boolean quiet;
+	private boolean quiet;
 	
 	public KeepAliveThread() {
 		keepAliveStatus = true;
@@ -14,7 +14,7 @@ public abstract class KeepAliveThread extends Thread {
 		keepAliveStatus = false;
 	}
 	
-	public static void setQuiet(boolean shh) {
+	public void setQuiet(boolean shh) {
 		quiet = shh;
 	}
 	
